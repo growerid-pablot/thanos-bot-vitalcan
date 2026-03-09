@@ -737,10 +737,14 @@ function handleBillingInvoiceDate(input: string, data: ClaimData): BotResponse {
       claimData: data,
     };
   }
+  const updated = { ...data, invoiceDate: input.trim() };
+  if (data.editReturnState === 'billing_claim_summary') {
+    return returnToBillingSummary(updated);
+  }
   return {
     messages: ['Perfecto, fecha registrada. ✅', 'Ahora decime el número de factura, tal como figura en el comprobante.'],
     nextState: 'billing_claim_invoice_number',
-    claimData: { ...data, invoiceDate: input.trim() },
+    claimData: updated,
   };
 }
 
