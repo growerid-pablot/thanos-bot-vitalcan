@@ -8,6 +8,7 @@ import ScenariosPanel from './ScenariosPanel';
 import {
   type Message,
   type ConversationState,
+  type ClaimData,
   createMessage,
   processUserInput,
   getInitialBotResponse,
@@ -23,6 +24,7 @@ const ChatInterface = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [activeQuickReplies, setActiveQuickReplies] = useState<string[] | undefined>();
   const [scenarioRunning, setScenarioRunning] = useState(false);
+  const [claimData, setClaimData] = useState<ClaimData>({});
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -35,7 +37,7 @@ const ChatInterface = () => {
   }, [messages, isTyping, scrollToBottom]);
 
   const addBotMessages = useCallback(
-    async (texts: string[], quickReplies?: string[], nextState?: ConversationState) => {
+    async (texts: string[], quickReplies?: string[], nextState?: ConversationState, newClaimData?: ClaimData) => {
       setIsTyping(true);
       setActiveQuickReplies(undefined);
 
@@ -51,6 +53,7 @@ const ChatInterface = () => {
 
       setIsTyping(false);
       if (nextState) setState(nextState);
+      if (newClaimData !== undefined) setClaimData(newClaimData);
     },
     []
   );
@@ -63,10 +66,10 @@ const ChatInterface = () => {
       setInput('');
       setActiveQuickReplies(undefined);
 
-      const response = processUserInput(state, text.trim());
-      await addBotMessages(response.messages, response.quickReplies, response.nextState);
+      const response = processUserInput(state, text.trim(), claimData);
+      await addBotMessages(response.messages, response.quickReplies, response.nextState, response.claimData);
     },
-    [state, isTyping, addBotMessages]
+    [state, isTyping, addBotMessages, claimData]
   );
 
   const handleReset = useCallback(() => {
@@ -76,6 +79,7 @@ const ChatInterface = () => {
     setIsTyping(false);
     setActiveQuickReplies(undefined);
     setScenarioRunning(false);
+    setClaimData({});
   }, []);
 
   const handleRunScenario = useCallback(
@@ -84,12 +88,13 @@ const ChatInterface = () => {
       setScenarioRunning(true);
       await new Promise((r) => setTimeout(r, 200));
 
+      let currentClaimData: ClaimData = {};
+
       for (const step of steps) {
         await new Promise((r) => setTimeout(r, 400));
         const userMsg = createMessage('user', step);
         setMessages((prev) => [...prev, userMsg]);
 
-        // need current state – use a ref-like approach via setState callback
         const currentState = await new Promise<ConversationState>((resolve) => {
           setState((s) => {
             resolve(s);
@@ -97,7 +102,12 @@ const ChatInterface = () => {
           });
         });
 
-        const response = processUserInput(currentState, step);
+        const response = processUserInput(currentState, step, currentClaimData);
+        if (response.claimData !== undefined) {
+          currentClaimData = response.claimData;
+          setClaimData(currentClaimData);
+        }
+
         setIsTyping(true);
         setActiveQuickReplies(undefined);
 
