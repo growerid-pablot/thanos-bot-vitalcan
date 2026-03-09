@@ -562,13 +562,17 @@ function handleExpiryDate(input: string, data: ClaimData): BotResponse {
       claimData: data,
     };
   }
+  const updated = { ...data, expiryDate: input.trim() };
+  if (data.editReturnState === 'product_claim_summary') {
+    return returnToProductSummary(updated);
+  }
   return {
     messages: [
       `Perfecto, fecha de vencimiento registrada: **${input.trim()}**. ✅`,
       'Ahora contame brevemente cuál es el motivo de tu reclamo. Si querés, podés adjuntar una imagen que nos ayude a entender mejor el problema. 📷',
     ],
     nextState: 'product_claim_reason',
-    claimData: { ...data, expiryDate: input.trim() },
+    claimData: updated,
   };
 }
 
