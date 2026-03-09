@@ -465,13 +465,17 @@ function handleLotNumber(input: string, data: ClaimData): BotResponse {
       claimData: data,
     };
   }
+  const updated = { ...data, lot: trimmed };
+  if (data.editReturnState === 'product_claim_summary') {
+    return returnToProductSummary(updated);
+  }
   return {
     messages: [
       `Perfecto, lote **${trimmed}** registrado. ✅`,
       'Ahora indicame la fecha de envasado. También podés encontrarla en el envase o dentro del paquete. Formato esperado: DD/MM/AAAA.',
     ],
     nextState: 'product_claim_packaging_date',
-    claimData: { ...data, lot: trimmed },
+    claimData: updated,
   };
 }
 
