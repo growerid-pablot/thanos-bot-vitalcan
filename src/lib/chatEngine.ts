@@ -858,10 +858,14 @@ function handleDeliveryWaybill(input: string, data: ClaimData): BotResponse {
       claimData: data,
     };
   }
+  const updated = { ...data, waybillNumber: input.trim() };
+  if (data.editReturnState === 'delivery_claim_summary') {
+    return returnToDeliverySummary(updated);
+  }
   return {
     messages: ['Perfecto, remito registrado. ✅', 'Ahora indicame la fecha de entrega (o la fecha estimada de entrega). Formato: DD/MM/AAAA.'],
     nextState: 'delivery_claim_delivery_date',
-    claimData: { ...data, waybillNumber: input.trim() },
+    claimData: updated,
   };
 }
 
