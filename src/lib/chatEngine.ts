@@ -55,7 +55,7 @@ const CLAIM_OPTIONS = [
 export function getInitialBotResponse(): BotResponse {
   return {
     messages: [
-      '¡Hola! Soy Biti, el asistente virtual de Vitalcan. Estoy acá para ayudarte con reclamos, consultas y gestiones comerciales. Decime qué necesitás hacer y te voy guiando paso a paso.',
+      '¡Hola! Soy Thanos, el asistente virtual de Vitalcan. Estoy acá para ayudarte con reclamos, consultas y gestiones comerciales. Decime qué necesitás hacer y te voy guiando paso a paso.',
     ],
     quickReplies: MAIN_MENU_OPTIONS,
     nextState: 'main_menu',
@@ -137,7 +137,7 @@ export function processUserInput(state: ConversationState, input: string): BotRe
       return {
         messages: [
           'Perfecto, ya recibí tu información. ✅',
-          `En esta demo dejamos el flujo preparado hasta este punto, mostrando cómo Biti identifica al cliente antes de continuar con la gestión de ${label}.`,
+          `En esta demo dejamos el flujo preparado hasta este punto, mostrando cómo Thanos identifica al cliente antes de continuar con la gestión de ${label}.`,
         ],
         quickReplies: ['Volver al menú principal', 'Finalizar'],
         nextState: 'completed_step',
@@ -154,7 +154,7 @@ export function processUserInput(state: ConversationState, input: string): BotRe
       }
       if (input === 'Finalizar') {
         return {
-          messages: ['¡Gracias por usar Biti! Si necesitás algo más, no dudes en escribirme. Que tengas un excelente día. 😊'],
+          messages: ['¡Gracias por usar Thanos! Si necesitás algo más, no dudes en escribirme. Que tengas un excelente día. 😊'],
           nextState: 'completed_step',
         };
       }
