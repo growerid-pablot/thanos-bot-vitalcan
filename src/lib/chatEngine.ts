@@ -126,13 +126,21 @@ export function processUserInput(state: ConversationState, input: string): BotRe
 
     case 'billing_claim_invoice_number':
       return {
+        messages: ['Gracias. Ahora contame brevemente el motivo de tu reclamo. Si querés, podés adjuntar una imagen del comprobante. 📷'],
+        nextState: 'billing_claim_reason',
+      };
+
+    case 'billing_claim_reason': {
+      const claimNum = generateClaimNumber();
+      return {
         messages: [
-          'Perfecto. Ya registré la información inicial de tu reclamo sobre facturación. 📋',
-          'Un representante de Vitalcan se va a comunicar con vos a la brevedad para darte seguimiento. ¿Necesitás algo más?',
+          `Perfecto. Tu reclamo sobre facturación ya fue ingresado con el número **${claimNum}**. 📋`,
+          'En breve, un asesor de Vitalcan se va a comunicar con vos para dar resolución al mismo. ¿Necesitás algo más?',
         ],
         quickReplies: ['Volver al menú principal', 'Finalizar'],
         nextState: 'completed_step',
       };
+    }
 
     case 'delivery_claim_waybill_number':
       return {
