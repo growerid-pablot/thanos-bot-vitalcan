@@ -137,7 +137,7 @@ export function processUserInput(state: ConversationState, input: string): BotRe
       return {
         messages: [
           'Perfecto, ya recibí tu información. ✅',
-          `En esta demo dejamos el flujo preparado hasta este punto, mostrando cómo Biti identifica al cliente antes de continuar con la gestión de ${label}.`,
+          `En esta demo dejamos el flujo preparado hasta este punto, mostrando cómo Thanos identifica al cliente antes de continuar con la gestión de ${label}.`,
         ],
         quickReplies: ['Volver al menú principal', 'Finalizar'],
         nextState: 'completed_step',
