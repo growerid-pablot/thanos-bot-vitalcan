@@ -427,6 +427,9 @@ function handleProductName(input: string, data: ClaimData): BotResponse {
 
 function handleProductConfirm(input: string, data: ClaimData): BotResponse {
   if (input === 'Sí, es correcto' || input.toLowerCase().includes('si') || input.toLowerCase().includes('sí') || input.toLowerCase() === 'correcto') {
+    if (data.editReturnState === 'product_claim_summary') {
+      return returnToProductSummary(data);
+    }
     return {
       messages: [
         `Perfecto, producto registrado. ✅`,
