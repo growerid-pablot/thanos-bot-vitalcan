@@ -5,7 +5,7 @@ const TypingIndicator = () => {
     <div className="flex gap-2 items-end animate-fade-in">
       <img
         src={bitiAvatar}
-        alt="Biti"
+        alt="Thanos"
         className="w-7 h-7 rounded-full flex-shrink-0 object-cover bg-white border border-border"
       />
       <div className="bg-[hsl(var(--bubble-bot))] px-4 py-3 rounded-2xl rounded-tl-md shadow-sm">
