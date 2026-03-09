@@ -887,10 +887,14 @@ function handleDeliveryDate(input: string, data: ClaimData): BotResponse {
       claimData: data,
     };
   }
+  const updated = { ...data, deliveryDate: input.trim() };
+  if (data.editReturnState === 'delivery_claim_summary') {
+    return returnToDeliverySummary(updated);
+  }
   return {
     messages: ['Perfecto, fecha registrada. ✅', 'Ahora contame brevemente el motivo de tu reclamo sobre la entrega. Si querés, podés adjuntar una imagen del remito. 📷'],
     nextState: 'delivery_claim_reason',
-    claimData: { ...data, deliveryDate: input.trim() },
+    claimData: updated,
   };
 }
 
