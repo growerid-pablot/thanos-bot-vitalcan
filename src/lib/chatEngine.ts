@@ -55,7 +55,7 @@ const CLAIM_OPTIONS = [
 export function getInitialBotResponse(): BotResponse {
   return {
     messages: [
-      '¡Hola! Soy Biti, el asistente virtual de Vitalcan. Estoy acá para ayudarte con reclamos, consultas y gestiones comerciales. Decime qué necesitás hacer y te voy guiando paso a paso.',
+      '¡Hola! Soy Thanos, el asistente virtual de Vitalcan. Estoy acá para ayudarte con reclamos, consultas y gestiones comerciales. Decime qué necesitás hacer y te voy guiando paso a paso.',
     ],
     quickReplies: MAIN_MENU_OPTIONS,
     nextState: 'main_menu',
