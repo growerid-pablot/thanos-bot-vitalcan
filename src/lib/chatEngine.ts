@@ -270,9 +270,9 @@ function handleClaimMenu(input: string): BotResponse {
 }
 
 export const DEMO_SCENARIOS = [
-  { label: 'Reclamo de producto', steps: ['Hola', 'Realizar un reclamo', 'Reclamo sobre productos', 'Vitalcan V50 Adulto 20kg', 'L-2024-0892', '15/01/2025', 'Puppis Palermo'] },
-  { label: 'Reclamo de facturación', steps: ['Hola', 'Realizar un reclamo', 'Reclamo sobre facturación', '03/02/2025', 'FAC-A-0001-00045892'] },
-  { label: 'Reclamo de entrega', steps: ['Hola', 'Realizar un reclamo', 'Reclamo sobre entregas', 'R-0001-00078234'] },
+  { label: 'Reclamo de producto', steps: ['Hola', 'Realizar un reclamo', 'Reclamo sobre productos', 'Vitalcan V50 Adulto 20kg', 'L-2024-0892', '15/01/2025', 'Puppis Palermo', 'El producto vino con el envase dañado y con olor rancio.'] },
+  { label: 'Reclamo de facturación', steps: ['Hola', 'Realizar un reclamo', 'Reclamo sobre facturación', '03/02/2025', 'FAC-A-0001-00045892', 'Me facturaron un monto diferente al pactado.'] },
+  { label: 'Reclamo de entrega', steps: ['Hola', 'Realizar un reclamo', 'Reclamo sobre entregas', 'R-0001-00078234', 'El pedido llegó incompleto, faltan 2 bultos.'] },
   { label: 'Consulta de precios', steps: ['Hola', 'Consultar lista de precios', '20-30567890-4'] },
   { label: 'Cuenta corriente', steps: ['Hola', 'Consultar cuenta corriente', 'Cliente #4521'] },
   { label: 'Pedido de venta', steps: ['Hola', 'Realizar un pedido de venta', '20-27845632-1'] },
