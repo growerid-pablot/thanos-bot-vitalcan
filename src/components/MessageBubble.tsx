@@ -32,7 +32,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
             : 'bg-[hsl(var(--bubble-user))] text-[hsl(var(--bubble-user-fg))] rounded-tr-md'
         )}
       >
-        <p className="whitespace-pre-wrap">{message.text}</p>
+        <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: message.text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
         <span className={cn(
           'block text-[10px] mt-1 text-right',
           isBot ? 'opacity-50' : 'opacity-60'
