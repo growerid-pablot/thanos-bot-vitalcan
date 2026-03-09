@@ -756,10 +756,14 @@ function handleBillingInvoiceNumber(input: string, data: ClaimData): BotResponse
       claimData: data,
     };
   }
+  const updated = { ...data, invoiceNumber: input.trim() };
+  if (data.editReturnState === 'billing_claim_summary') {
+    return returnToBillingSummary(updated);
+  }
   return {
     messages: ['Gracias. Ahora contame brevemente el motivo de tu reclamo sobre facturación. Si querés, podés adjuntar una imagen del comprobante. 📷'],
     nextState: 'billing_claim_reason',
-    claimData: { ...data, invoiceNumber: input.trim() },
+    claimData: updated,
   };
 }
 
