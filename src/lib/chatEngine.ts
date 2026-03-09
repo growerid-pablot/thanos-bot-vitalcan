@@ -623,6 +623,9 @@ function handleProductReason(input: string, data: ClaimData): BotResponse {
 
 function handleProductReasonConfirm(input: string, data: ClaimData): BotResponse {
   if (input === 'Sí, correcto' || input.toLowerCase().includes('si') || input.toLowerCase().includes('sí') || input.toLowerCase() === 'correcto') {
+    if (data.editReturnState === 'product_claim_summary') {
+      return returnToProductSummary(data);
+    }
     return {
       messages: ['Perfecto, motivo registrado. ✅', 'Por último, indicame dónde realizaste la compra del producto.'],
       nextState: 'product_claim_purchase_location',
