@@ -514,13 +514,17 @@ function handlePackagingDate(input: string, data: ClaimData): BotResponse {
       claimData: data,
     };
   }
+  const updated = { ...data, packagingDate: input.trim() };
+  if (data.editReturnState === 'product_claim_summary') {
+    return returnToProductSummary(updated);
+  }
   return {
     messages: [
       `Perfecto, fecha de envasado registrada: **${input.trim()}**. ✅`,
       'Ahora indicame por favor la fecha de vencimiento del producto. Formato esperado: DD/MM/AAAA.',
     ],
     nextState: 'product_claim_expiry_date',
-    claimData: { ...data, packagingDate: input.trim() },
+    claimData: updated,
   };
 }
 
