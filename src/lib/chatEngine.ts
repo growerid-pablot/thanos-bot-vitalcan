@@ -344,6 +344,50 @@ function handleClaimMenu(input: string): BotResponse {
   }
 }
 
+// ─── Edit return helper ──────────────────────────────────────────────────────
+
+function returnToProductSummary(data: ClaimData): BotResponse {
+  const cleaned = { ...data, editReturnState: undefined };
+  return {
+    messages: [
+      'Dato actualizado. ✅ Este es el resumen actualizado:',
+      formatProductSummary(cleaned),
+      '¿Querés confirmar esta información?',
+    ],
+    quickReplies: ['Confirmar reclamo', 'Editar datos'],
+    nextState: 'product_claim_summary',
+    claimData: cleaned,
+  };
+}
+
+function returnToBillingSummary(data: ClaimData): BotResponse {
+  const cleaned = { ...data, editReturnState: undefined };
+  return {
+    messages: [
+      'Dato actualizado. ✅ Este es el resumen actualizado:',
+      formatBillingSummary(cleaned),
+      '¿Querés confirmar esta información?',
+    ],
+    quickReplies: ['Confirmar reclamo', 'Editar datos'],
+    nextState: 'billing_claim_summary',
+    claimData: cleaned,
+  };
+}
+
+function returnToDeliverySummary(data: ClaimData): BotResponse {
+  const cleaned = { ...data, editReturnState: undefined };
+  return {
+    messages: [
+      'Dato actualizado. ✅ Este es el resumen actualizado:',
+      formatDeliverySummary(cleaned),
+      '¿Querés confirmar esta información?',
+    ],
+    quickReplies: ['Confirmar reclamo', 'Editar datos'],
+    nextState: 'delivery_claim_summary',
+    claimData: cleaned,
+  };
+}
+
 // ─── Product claim handlers ──────────────────────────────────────────────────
 
 function handleProductName(input: string, data: ClaimData): BotResponse {
