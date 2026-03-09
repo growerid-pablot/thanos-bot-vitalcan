@@ -14,7 +14,7 @@ const ChatHeader = ({ onReset }: ChatHeaderProps) => {
         className="w-10 h-10 rounded-full border-2 border-white/20 object-cover bg-white"
       />
       <div className="flex-1 min-w-0">
-        <h1 className="text-base font-semibold leading-tight">Biti</h1>
+        <h1 className="text-base font-semibold leading-tight">Thanos</h1>
         <p className="text-xs opacity-80 leading-tight">Asistente virtual de Vitalcan</p>
       </div>
       <button
