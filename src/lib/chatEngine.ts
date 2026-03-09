@@ -144,13 +144,21 @@ export function processUserInput(state: ConversationState, input: string): BotRe
 
     case 'delivery_claim_waybill_number':
       return {
+        messages: ['Gracias. Ahora contame brevemente el motivo de tu reclamo. Si querés, podés adjuntar una imagen del remito. 📷'],
+        nextState: 'delivery_claim_reason',
+      };
+
+    case 'delivery_claim_reason': {
+      const claimNum = generateClaimNumber();
+      return {
         messages: [
-          'Perfecto. Ya registré la información inicial de tu reclamo sobre entrega. 📋',
-          'Un representante de Vitalcan se va a comunicar con vos a la brevedad para darte seguimiento. ¿Necesitás algo más?',
+          `Perfecto. Tu reclamo sobre entrega ya fue ingresado con el número **${claimNum}**. 📋`,
+          'En breve, un asesor de Vitalcan se va a comunicar con vos para dar resolución al mismo. ¿Necesitás algo más?',
         ],
         quickReplies: ['Volver al menú principal', 'Finalizar'],
         nextState: 'completed_step',
       };
+    }
 
     case 'awaiting_customer_id_for_price_list':
     case 'awaiting_customer_id_for_account_status':
