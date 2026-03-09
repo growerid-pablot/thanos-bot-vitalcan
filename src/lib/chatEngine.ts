@@ -154,7 +154,7 @@ export function processUserInput(state: ConversationState, input: string): BotRe
       }
       if (input === 'Finalizar') {
         return {
-          messages: ['¡Gracias por usar Biti! Si necesitás algo más, no dudes en escribirme. Que tengas un excelente día. 😊'],
+          messages: ['¡Gracias por usar Thanos! Si necesitás algo más, no dudes en escribirme. Que tengas un excelente día. 😊'],
           nextState: 'completed_step',
         };
       }

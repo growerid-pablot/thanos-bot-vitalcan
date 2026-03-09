@@ -15,7 +15,7 @@ const TypingIndicator = () => {
           <span className="w-2 h-2 rounded-full bg-[hsl(var(--muted-foreground))] animate-bounce [animation-delay:300ms]" />
         </div>
       </div>
-      <span className="text-xs text-muted-foreground ml-1">Biti está escribiendo...</span>
+      <span className="text-xs text-muted-foreground ml-1">Thanos está escribiendo...</span>
     </div>
   );
 };

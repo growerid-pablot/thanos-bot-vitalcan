@@ -10,7 +10,7 @@ const ChatHeader = ({ onReset }: ChatHeaderProps) => {
     <div className="flex items-center gap-3 px-4 py-3 bg-[hsl(var(--chat-header))] text-[hsl(var(--chat-header-fg))] shadow-md z-10">
       <img
         src={bitiAvatar}
-        alt="Biti avatar"
+        alt="Thanos avatar"
         className="w-10 h-10 rounded-full border-2 border-white/20 object-cover bg-white"
       />
       <div className="flex-1 min-w-0">
