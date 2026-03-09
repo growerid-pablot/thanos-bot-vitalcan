@@ -6,13 +6,22 @@ export type ConversationState =
   | 'product_claim_lot_number'
   | 'product_claim_packaging_date'
   | 'product_claim_purchase_location'
+  | 'product_claim_reason'
   | 'billing_claim_invoice_date'
   | 'billing_claim_invoice_number'
+  | 'billing_claim_reason'
   | 'delivery_claim_waybill_number'
+  | 'delivery_claim_reason'
   | 'awaiting_customer_id_for_price_list'
   | 'awaiting_customer_id_for_account_status'
   | 'awaiting_customer_id_for_sales_order'
   | 'completed_step';
+
+let claimCounter = 45800;
+function generateClaimNumber(): string {
+  claimCounter += Math.floor(Math.random() * 5) + 1;
+  return `REC-${claimCounter}`;
+}
 
 export interface Message {
   id: string;
