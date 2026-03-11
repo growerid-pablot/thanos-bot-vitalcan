@@ -6,6 +6,14 @@ interface MessageBubbleProps {
   message: Message;
 }
 
+function formatMessageText(text: string): string {
+  return text
+    // Markdown links: [text](url)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline font-medium hover:opacity-80">$1</a>')
+    // Bold: **text**
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+
 const MessageBubble = ({ message }: MessageBubbleProps) => {
   const isBot = message.sender === 'bot';
   const time = message.timestamp.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
@@ -32,7 +40,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
             : 'bg-[hsl(var(--bubble-user))] text-[hsl(var(--bubble-user-fg))] rounded-tr-md'
         )}
       >
-        <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: message.text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }} />
+        <p className="whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: formatMessageText(message.text) }} />
         <span className={cn(
           'block text-[10px] mt-1 text-right',
           isBot ? 'opacity-50' : 'opacity-60'
