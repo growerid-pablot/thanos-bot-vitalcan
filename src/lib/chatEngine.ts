@@ -831,32 +831,17 @@ function handleProductReasonConfirm(input: string, data: ClaimData): BotResponse
     return handleProductReasonShowAlternatives(data);
   }
   if (input === 'Ninguna coincide') {
+    const cleaned = { ...data, reasonFormatted: 'Otros motivos', _reasonAlternatives: undefined, editReturnState: undefined };
+    if (data.editReturnState === 'product_claim_summary') {
+      return returnToProductSummary(cleaned);
+    }
     return {
-      messages: ['Perfecto. Para esta demo voy a registrar un motivo general y el equipo podrá ampliarlo luego.'],
-      nextState: data.editReturnState === 'product_claim_summary' ? 'product_claim_summary' : 'product_claim_purchase_location',
-      claimData: {
-        ...data,
-        reasonFormatted: 'Otros motivos',
-        _reasonAlternatives: undefined,
-        ...(data.editReturnState !== 'product_claim_summary' ? {} : {}),
-      },
-      ...(data.editReturnState === 'product_claim_summary'
-        ? {
-          messages: [
-            'Perfecto. Para esta demo voy a registrar un motivo general.',
-            'Dato actualizado. ✅ Este es el resumen actualizado:',
-            formatProductSummary({ ...data, reasonFormatted: 'Otros motivos' }),
-            '¿Querés confirmar esta información?',
-          ],
-          quickReplies: ['Confirmar reclamo', 'Editar datos'],
-        }
-        : {
-          messages: [
-            'Perfecto. Para esta demo voy a registrar un motivo general y el equipo podrá ampliarlo luego.',
-            'Por último, indicame dónde realizaste la compra del producto.',
-          ],
-        }),
-      claimData: { ...data, reasonFormatted: 'Otros motivos', _reasonAlternatives: undefined, editReturnState: undefined },
+      messages: [
+        'Perfecto. Para esta demo voy a registrar un motivo general y el equipo podrá ampliarlo luego.',
+        'Por último, indicame dónde realizaste la compra del producto.',
+      ],
+      nextState: 'product_claim_purchase_location',
+      claimData: cleaned,
     };
   }
   // "No, quiero corregirlo"
