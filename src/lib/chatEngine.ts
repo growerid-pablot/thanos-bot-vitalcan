@@ -852,6 +852,18 @@ function handleProductReason(input: string, data: ClaimData): BotResponse {
     };
   }
 
+  // Health urgency detection — before reason matching
+  if (detectHealthUrgency(trimmed)) {
+    return {
+      messages: [
+        'Quiero ayudarte lo mejor posible. Detecté que tu mensaje podría estar relacionado con la salud de tu mascota. Si querés, puedo marcar esta gestión como prioritaria para que un asesor te contacte lo antes posible.',
+      ],
+      quickReplies: ['Sí, quiero asesoría urgente', 'No, continuar con el reclamo', 'Volver a escribir el motivo'],
+      nextState: 'product_claim_health_alert',
+      claimData: { ...data, reason: trimmed },
+    };
+  }
+
   // Use real reason repository to suggest
   const suggestions = suggestClaimReasons(trimmed);
 
@@ -881,6 +893,55 @@ function handleProductReason(input: string, data: ClaimData): BotResponse {
     quickReplies: ['Sí, correcto', 'No, quiero corregirlo'],
     nextState: 'product_claim_reason_confirm',
     claimData: { ...data, reason: trimmed, reasonFormatted: 'Otros motivos', _reasonAlternatives: [] },
+  };
+}
+
+function handleHealthAlert(input: string, data: ClaimData): BotResponse {
+  if (input === 'Sí, quiero asesoría urgente') {
+    const num = generateClaimNumber();
+    return {
+      messages: [
+        `Perfecto. Voy a registrar esta gestión con prioridad para asesoría veterinaria con el número **${num}**. Un asesor se va a comunicar con vos a la brevedad. 🩺`,
+        '_En esta versión demo la carga se simula localmente, pero en una implementación real el ticket quedaría registrado con prioridad en el sistema._',
+      ],
+      quickReplies: ['Volver al menú principal', 'Finalizar'],
+      nextState: 'completed_step',
+      claimData: {},
+    };
+  }
+  if (input === 'Volver a escribir el motivo') {
+    return {
+      messages: ['Perfecto, contame nuevamente el motivo de tu reclamo con tus palabras.'],
+      nextState: 'product_claim_reason',
+      claimData: { ...data, reason: null, reasonFormatted: null },
+    };
+  }
+  // "No, continuar con el reclamo" or any other input — proceed with normal reason flow
+  const reason = data.reason ?? '';
+  const suggestions = suggestClaimReasons(reason);
+
+  if (suggestions.length > 0) {
+    const best = suggestions[0];
+    const alternatives = suggestions.slice(1);
+    return {
+      messages: [
+        `Entendido, continuamos con el reclamo. En base a lo que me indicás, el motivo más cercano podría ser: **${best.name}**. ¿Querés usar este motivo?`,
+      ],
+      quickReplies: ['Sí, usar este motivo', ...(alternatives.length > 0 ? ['Ver otras opciones'] : []), 'Ninguna coincide'],
+      nextState: 'product_claim_reason_confirm',
+      claimData: {
+        ...data,
+        reasonFormatted: best.name,
+        _reasonAlternatives: alternatives.map(r => ({ id: r.id, name: r.name })),
+      },
+    };
+  }
+
+  return {
+    messages: ['Entendido, continuamos con el reclamo. Voy a registrar el motivo como: **Otros motivos**. ¿Es correcto?'],
+    quickReplies: ['Sí, correcto', 'No, quiero corregirlo'],
+    nextState: 'product_claim_reason_confirm',
+    claimData: { ...data, reasonFormatted: 'Otros motivos', _reasonAlternatives: [] },
   };
 }
 
