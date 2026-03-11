@@ -1,6 +1,7 @@
 import { findContactByIdNumber } from './contactRepository';
-import { findBestProductMatch, searchProducts } from './productRepository';
+import { findTopProductMatches, findProductByInternalReference } from './productMatching';
 import { suggestClaimReasons } from './reasonRepository';
+import { detectHealthUrgency } from './healthUrgency';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
