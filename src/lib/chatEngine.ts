@@ -35,6 +35,7 @@ export type ConversationState =
   | 'product_claim_reason'
   | 'product_claim_reason_confirm'
   | 'product_claim_reason_suggest'
+  | 'product_claim_health_alert'
   | 'product_claim_purchase_location'
   | 'product_claim_summary'
   | 'product_claim_edit_select'
