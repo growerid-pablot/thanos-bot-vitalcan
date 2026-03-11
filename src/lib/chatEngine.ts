@@ -337,83 +337,131 @@ function handleCuit(input: string, data: ClaimData, flow: CuitFlow): BotResponse
   }
 
   const contact = findContactByIdNumber(cuit);
-  const confirmState = `confirm_client_for_${flow}` as ConversationState;
 
   if (contact) {
     return {
       messages: [`Encontré este cliente: **${contact.name}**. ¿Podés confirmarme si corresponde a tu cuenta?`],
-      quickReplies: ['Sí, es correcto', 'No, no corresponde'],
-      nextState: confirmState,
+      quickReplies: ['Sí, es correcto', 'No, buscar nuevamente', 'Crear cliente nuevo'],
+      nextState: `confirm_client_for_${flow}` as ConversationState,
       claimData: { ...data, clientName: contact.name, clientCuit: cuit, clientIsNew: false },
     };
   }
 
-  // Not found — handle per flow
-  if (flow === 'account') {
-    return {
-      messages: [
-        'No pude identificar tu CUIT en la base de clientes.',
-        'Por favor comunicate con **facturaciones@vitalcan.com.ar** para realizar la consulta con un agente.',
-      ],
-      quickReplies: ['Volver al menú principal', 'Finalizar'],
-      nextState: 'completed_step',
-      claimData: {},
-    };
-  }
-
-  const updated = { ...data, clientCuit: cuit, clientIsNew: true, clientName: null };
-  return continueAfterClientIdentified(updated, flow, true);
+  // Not found — show options for ALL flows
+  return {
+    messages: ['No encontré una coincidencia para ese CUIT en la base de clientes.'],
+    quickReplies: ['Reintentar búsqueda', 'Continuar como cliente nuevo'],
+    nextState: `client_not_found_for_${flow}` as ConversationState,
+    claimData: { ...data, clientCuit: cuit, clientIsNew: true, clientName: null },
+  };
 }
 
 function handleClientConfirm(input: string, data: ClaimData, flow: CuitFlow): BotResponse {
-  if (input === 'Sí, es correcto' || input.toLowerCase().includes('si') || input.toLowerCase().includes('sí')) {
-    return continueAfterClientIdentified(data, flow, false);
+  if (input === 'Sí, es correcto' || input.toLowerCase().includes('sí') || input.toLowerCase().includes('si')) {
+    return continueAfterClientIdentified(data, flow);
   }
-  // Not the right client
-  const updated = { ...data, clientIsNew: true, clientName: null };
-  if (flow === 'account') {
+  if (input === 'No, buscar nuevamente') {
     return {
-      messages: [
-        'No pude identificar tu cuenta. Por favor comunicate con **facturaciones@vitalcan.com.ar** para realizar la consulta con un agente.',
-      ],
-      quickReplies: ['Volver al menú principal', 'Finalizar'],
-      nextState: 'completed_step',
-      claimData: {},
+      messages: ['Para continuar, por favor indicame tu CUIT.'],
+      nextState: `awaiting_cuit_for_${flow}` as ConversationState,
+      claimData: { ...data, clientName: null, clientCuit: null, clientIsNew: false },
     };
   }
-  return continueAfterClientIdentified(updated, flow, true);
+  if (input === 'Crear cliente nuevo') {
+    return continueAsNewClient({ ...data, clientIsNew: true, clientName: null }, flow);
+  }
+  // Fallback
+  return {
+    messages: ['Por favor seleccioná una opción.'],
+    quickReplies: ['Sí, es correcto', 'No, buscar nuevamente', 'Crear cliente nuevo'],
+    nextState: `confirm_client_for_${flow}` as ConversationState,
+    claimData: data,
+  };
 }
 
-function continueAfterClientIdentified(data: ClaimData, flow: CuitFlow, isNew: boolean): BotResponse {
-  const newClientMsg = isNew
-    ? 'No encontré una coincidencia para ese CUIT. Para esta demo voy a continuar registrándote como cliente nuevo.'
-    : null;
+function handleClientNotFound(input: string, data: ClaimData, flow: CuitFlow): BotResponse {
+  if (input === 'Reintentar búsqueda') {
+    return {
+      messages: ['Para continuar, por favor indicame tu CUIT.'],
+      nextState: `awaiting_cuit_for_${flow}` as ConversationState,
+      claimData: { ...data, clientName: null, clientCuit: null, clientIsNew: false },
+    };
+  }
+  if (input === 'Continuar como cliente nuevo') {
+    return continueAsNewClient(data, flow);
+  }
+  // Fallback
+  return {
+    messages: ['Por favor seleccioná una opción.'],
+    quickReplies: ['Reintentar búsqueda', 'Continuar como cliente nuevo'],
+    nextState: `client_not_found_for_${flow}` as ConversationState,
+    claimData: data,
+  };
+}
+
+function continueAsNewClient(data: ClaimData, flow: CuitFlow): BotResponse {
+  const newData = { ...data, clientIsNew: true };
 
   switch (flow) {
-    case 'claim': {
-      const msgs = newClientMsg
-        ? [newClientMsg, 'Indicame por favor sobre qué tipo de reclamo querés avanzar.']
-        : ['Perfecto, cliente confirmado. ✅', 'Indicame por favor sobre qué tipo de reclamo querés avanzar.'];
+    case 'claim':
       return {
-        messages: msgs,
+        messages: [
+          'Perfecto. Para esta demo voy a continuar registrándote como cliente nuevo.',
+          'Indicame por favor sobre qué tipo de reclamo querés avanzar.',
+        ],
         quickReplies: CLAIM_OPTIONS,
         nextState: 'claim_menu',
-        claimData: data,
+        claimData: newData,
       };
-    }
-    case 'price_list': {
-      const msgs = newClientMsg
-        ? [newClientMsg, 'Igualmente te comparto la lista de precios vigente.', '📄 [Descargar lista de precios](/Lista_de_precios.pdf)']
-        : ['Perfecto. Te comparto la lista de precios vigente.', '📄 [Descargar lista de precios](/Lista_de_precios.pdf)'];
+    case 'price_list':
       return {
-        messages: msgs,
+        messages: [
+          'Perfecto. Para esta demo voy a continuar como cliente nuevo y te comparto la lista de precios vigente.',
+          '📄 [Descargar lista de precios](/Lista_de_precios.pdf)',
+        ],
         quickReplies: ['Volver al menú principal', 'Finalizar'],
         nextState: 'completed_step',
         claimData: {},
       };
-    }
-    case 'account': {
-      // If we get here, the client was confirmed (not new)
+    case 'account':
+      return {
+        messages: [
+          'Como no pude identificar tu CUIT en la base de clientes, por favor comunicate con **facturaciones@vitalcan.com.ar** para realizar la consulta con un agente.',
+        ],
+        quickReplies: ['Volver al menú principal', 'Finalizar'],
+        nextState: 'completed_step',
+        claimData: {},
+      };
+    case 'sales_order':
+      return {
+        messages: [
+          'No encontré una coincidencia para ese CUIT. Para esta demo voy a continuar registrándote como cliente nuevo.',
+          'Excelente. Esta es una versión demo. En una etapa futura estaremos recibiendo tu pedido por WhatsApp y procesándolo de forma integrada.',
+        ],
+        quickReplies: ['Volver al menú principal', 'Finalizar'],
+        nextState: 'completed_step',
+        claimData: {},
+      };
+  }
+}
+
+function continueAfterClientIdentified(data: ClaimData, flow: CuitFlow): BotResponse {
+  switch (flow) {
+    case 'claim':
+      return {
+        messages: ['Perfecto, cliente confirmado. ✅', 'Indicame por favor sobre qué tipo de reclamo querés avanzar.'],
+        quickReplies: CLAIM_OPTIONS,
+        nextState: 'claim_menu',
+        claimData: data,
+      };
+    case 'price_list':
+      return {
+        messages: ['Perfecto. Te comparto la lista de precios vigente.', '📄 [Descargar lista de precios](/Lista_de_precios.pdf)'],
+        quickReplies: ['Volver al menú principal', 'Finalizar'],
+        nextState: 'completed_step',
+        claimData: {},
+      };
+    case 'account':
       return {
         messages: [
           'Perfecto, cliente confirmado. ✅',
@@ -423,18 +471,16 @@ function continueAfterClientIdentified(data: ClaimData, flow: CuitFlow, isNew: b
         nextState: 'completed_step',
         claimData: {},
       };
-    }
-    case 'sales_order': {
-      const msgs = newClientMsg
-        ? [newClientMsg, 'Excelente. Esta es una versión demo. En una etapa futura estaremos recibiendo tu pedido por WhatsApp y procesándolo de forma integrada.']
-        : ['Perfecto, cliente confirmado. ✅', 'Excelente. Esta es una versión demo. En una etapa futura estaremos recibiendo tu pedido por WhatsApp y procesándolo de forma integrada.'];
+    case 'sales_order':
       return {
-        messages: msgs,
+        messages: [
+          'Perfecto, cliente confirmado. ✅',
+          'Excelente. Esta es una versión demo. En una etapa futura estaremos recibiendo tu pedido por WhatsApp y procesándolo de forma integrada.',
+        ],
         quickReplies: ['Volver al menú principal', 'Finalizar'],
         nextState: 'completed_step',
         claimData: {},
       };
-    }
   }
 }
 
