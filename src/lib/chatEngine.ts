@@ -1,6 +1,7 @@
 import { findContactByIdNumber } from './contactRepository';
-import { findBestProductMatch, searchProducts } from './productRepository';
+import { findTopProductMatches, findProductByInternalReference } from './productMatching';
 import { suggestClaimReasons } from './reasonRepository';
+import { detectHealthUrgency } from './healthUrgency';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ export type ConversationState =
   | 'product_claim_reason'
   | 'product_claim_reason_confirm'
   | 'product_claim_reason_suggest'
+  | 'product_claim_health_alert'
   | 'product_claim_purchase_location'
   | 'product_claim_summary'
   | 'product_claim_edit_select'
@@ -158,9 +160,7 @@ const CLAIM_OPTIONS = [
 
 function buildClaimClosure(claimType: string, num: string): string[] {
   return [
-    `Tu ticket de ${claimType} ya fue ingresado en la base de datos con el número **${num}**. 📋`,
-    'Un asesor se va a comunicar con vos para continuar el seguimiento.',
-    'Este caso será derivado a Contact Center y luego asignado al equipo correspondiente.',
+    `Tu ticket de ${claimType} ya fue ingresado en la base de datos con el número **${num}**. Un asesor se va a comunicar con vos para continuar el seguimiento. 📋`,
     '_En esta versión demo la carga se simula localmente, pero en una implementación real el ticket quedaría registrado en el sistema._',
   ];
 }
@@ -249,6 +249,8 @@ export function processUserInput(state: ConversationState, input: string, claimD
       return handleProductReasonConfirm(input, data);
     case 'product_claim_reason_suggest':
       return handleProductReasonSuggest(input, data);
+    case 'product_claim_health_alert':
+      return handleHealthAlert(input, data);
     case 'product_claim_purchase_location':
       return handlePurchaseLocation(input, data);
     case 'product_claim_summary':
@@ -584,12 +586,24 @@ function handleProductName(input: string, data: ClaimData): BotResponse {
     };
   }
 
-  // Search using real product repository
-  const results = searchProducts(trimmed);
-  const bestMatch = findBestProductMatch(trimmed);
+  // Try internal reference first
+  const refMatch = findProductByInternalReference(trimmed);
+  if (refMatch) {
+    return {
+      messages: [
+        '🔍 Buscando el producto en la base de datos...',
+        `Encontré este producto por referencia interna: **${refMatch.name}**. ¿Querés seleccionarlo?`,
+      ],
+      quickReplies: ['Sí, seleccionar producto', 'No, buscar otro'],
+      nextState: 'product_claim_product_confirm',
+      claimData: { ...data, product: refMatch.name },
+    };
+  }
+
+  // Search using robust matching
+  const results = findTopProductMatches(trimmed, 5);
 
   if (results.length === 0) {
-    // No match at all
     return {
       messages: [
         '🔍 Buscando el producto en la base de datos...',
@@ -601,31 +615,29 @@ function handleProductName(input: string, data: ClaimData): BotResponse {
     };
   }
 
-  if (results.length === 1 || (bestMatch && results.length <= 3)) {
-    // Single best match or clear winner
-    const product = bestMatch ?? results[0];
+  if (results.length === 1) {
     return {
       messages: [
         '🔍 Buscando el producto en la base de datos...',
-        `Encontré este producto: **${product.name}**. ¿Querés seleccionarlo?`,
+        `Encontré este producto: **${results[0].name}**. ¿Querés seleccionarlo?`,
       ],
       quickReplies: ['Sí, seleccionar producto', 'No, buscar otro'],
       nextState: 'product_claim_product_confirm',
-      claimData: { ...data, product: product.name },
+      claimData: { ...data, product: results[0].name },
     };
   }
 
-  // Multiple matches — show top 3 as quick replies
-  const top3 = results.slice(0, 3);
-  const options = [...top3.map(p => p.name), 'Ninguno de estos'];
+  // Multiple matches — show up to 5 as quick replies
+  const top = results.slice(0, 5);
+  const options = [...top.map(p => p.name), 'Ninguno de estos'];
   return {
     messages: [
       '🔍 Buscando el producto en la base de datos...',
-      'Encontré varias coincidencias. ¿Cuál es el producto correcto?',
+      'Encontré estos productos posibles. Seleccioná el que corresponda:',
     ],
     quickReplies: options,
     nextState: 'product_claim_product_select',
-    claimData: { ...data, _productCandidates: top3.map(p => p.name) },
+    claimData: { ...data, _productCandidates: top.map(p => p.name) },
   };
 }
 
@@ -840,6 +852,18 @@ function handleProductReason(input: string, data: ClaimData): BotResponse {
     };
   }
 
+  // Health urgency detection — before reason matching
+  if (detectHealthUrgency(trimmed)) {
+    return {
+      messages: [
+        'Quiero ayudarte lo mejor posible. Detecté que tu mensaje podría estar relacionado con la salud de tu mascota. Si querés, puedo marcar esta gestión como prioritaria para que un asesor te contacte lo antes posible.',
+      ],
+      quickReplies: ['Sí, quiero asesoría urgente', 'No, continuar con el reclamo', 'Volver a escribir el motivo'],
+      nextState: 'product_claim_health_alert',
+      claimData: { ...data, reason: trimmed },
+    };
+  }
+
   // Use real reason repository to suggest
   const suggestions = suggestClaimReasons(trimmed);
 
@@ -869,6 +893,55 @@ function handleProductReason(input: string, data: ClaimData): BotResponse {
     quickReplies: ['Sí, correcto', 'No, quiero corregirlo'],
     nextState: 'product_claim_reason_confirm',
     claimData: { ...data, reason: trimmed, reasonFormatted: 'Otros motivos', _reasonAlternatives: [] },
+  };
+}
+
+function handleHealthAlert(input: string, data: ClaimData): BotResponse {
+  if (input === 'Sí, quiero asesoría urgente') {
+    const num = generateClaimNumber();
+    return {
+      messages: [
+        `Perfecto. Voy a registrar esta gestión con prioridad para asesoría veterinaria con el número **${num}**. Un asesor se va a comunicar con vos a la brevedad. 🩺`,
+        '_En esta versión demo la carga se simula localmente, pero en una implementación real el ticket quedaría registrado con prioridad en el sistema._',
+      ],
+      quickReplies: ['Volver al menú principal', 'Finalizar'],
+      nextState: 'completed_step',
+      claimData: {},
+    };
+  }
+  if (input === 'Volver a escribir el motivo') {
+    return {
+      messages: ['Perfecto, contame nuevamente el motivo de tu reclamo con tus palabras.'],
+      nextState: 'product_claim_reason',
+      claimData: { ...data, reason: null, reasonFormatted: null },
+    };
+  }
+  // "No, continuar con el reclamo" or any other input — proceed with normal reason flow
+  const reason = data.reason ?? '';
+  const suggestions = suggestClaimReasons(reason);
+
+  if (suggestions.length > 0) {
+    const best = suggestions[0];
+    const alternatives = suggestions.slice(1);
+    return {
+      messages: [
+        `Entendido, continuamos con el reclamo. En base a lo que me indicás, el motivo más cercano podría ser: **${best.name}**. ¿Querés usar este motivo?`,
+      ],
+      quickReplies: ['Sí, usar este motivo', ...(alternatives.length > 0 ? ['Ver otras opciones'] : []), 'Ninguna coincide'],
+      nextState: 'product_claim_reason_confirm',
+      claimData: {
+        ...data,
+        reasonFormatted: best.name,
+        _reasonAlternatives: alternatives.map(r => ({ id: r.id, name: r.name })),
+      },
+    };
+  }
+
+  return {
+    messages: ['Entendido, continuamos con el reclamo. Voy a registrar el motivo como: **Otros motivos**. ¿Es correcto?'],
+    quickReplies: ['Sí, correcto', 'No, quiero corregirlo'],
+    nextState: 'product_claim_reason_confirm',
+    claimData: { ...data, reasonFormatted: 'Otros motivos', _reasonAlternatives: [] },
   };
 }
 
