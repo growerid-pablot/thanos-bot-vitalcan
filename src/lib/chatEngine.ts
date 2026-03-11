@@ -249,6 +249,8 @@ export function processUserInput(state: ConversationState, input: string, claimD
       return handleProductReasonConfirm(input, data);
     case 'product_claim_reason_suggest':
       return handleProductReasonSuggest(input, data);
+    case 'product_claim_health_alert':
+      return handleHealthAlert(input, data);
     case 'product_claim_purchase_location':
       return handlePurchaseLocation(input, data);
     case 'product_claim_summary':
