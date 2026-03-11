@@ -200,18 +200,26 @@ export function processUserInput(state: ConversationState, input: string, claimD
       return handleCuit(input, data, 'claim');
     case 'confirm_client_for_claim':
       return handleClientConfirm(input, data, 'claim');
+    case 'client_not_found_for_claim':
+      return handleClientNotFound(input, data, 'claim');
     case 'awaiting_cuit_for_price_list':
       return handleCuit(input, data, 'price_list');
     case 'confirm_client_for_price_list':
       return handleClientConfirm(input, data, 'price_list');
+    case 'client_not_found_for_price_list':
+      return handleClientNotFound(input, data, 'price_list');
     case 'awaiting_cuit_for_account':
       return handleCuit(input, data, 'account');
     case 'confirm_client_for_account':
       return handleClientConfirm(input, data, 'account');
+    case 'client_not_found_for_account':
+      return handleClientNotFound(input, data, 'account');
     case 'awaiting_cuit_for_sales_order':
       return handleCuit(input, data, 'sales_order');
     case 'confirm_client_for_sales_order':
       return handleClientConfirm(input, data, 'sales_order');
+    case 'client_not_found_for_sales_order':
+      return handleClientNotFound(input, data, 'sales_order');
 
     case 'claim_menu':
       return handleClaimMenu(input, data);
