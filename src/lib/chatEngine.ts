@@ -10,12 +10,16 @@ export type ConversationState =
   // CUIT identification states
   | 'awaiting_cuit_for_claim'
   | 'confirm_client_for_claim'
+  | 'client_not_found_for_claim'
   | 'awaiting_cuit_for_price_list'
   | 'confirm_client_for_price_list'
+  | 'client_not_found_for_price_list'
   | 'awaiting_cuit_for_account'
   | 'confirm_client_for_account'
+  | 'client_not_found_for_account'
   | 'awaiting_cuit_for_sales_order'
   | 'confirm_client_for_sales_order'
+  | 'client_not_found_for_sales_order'
   | 'claim_menu'
   // Product claim states
   | 'product_claim_product_name'
