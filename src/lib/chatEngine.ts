@@ -584,12 +584,24 @@ function handleProductName(input: string, data: ClaimData): BotResponse {
     };
   }
 
-  // Search using real product repository
-  const results = searchProducts(trimmed);
-  const bestMatch = findBestProductMatch(trimmed);
+  // Try internal reference first
+  const refMatch = findProductByInternalReference(trimmed);
+  if (refMatch) {
+    return {
+      messages: [
+        '🔍 Buscando el producto en la base de datos...',
+        `Encontré este producto por referencia interna: **${refMatch.name}**. ¿Querés seleccionarlo?`,
+      ],
+      quickReplies: ['Sí, seleccionar producto', 'No, buscar otro'],
+      nextState: 'product_claim_product_confirm',
+      claimData: { ...data, product: refMatch.name },
+    };
+  }
+
+  // Search using robust matching
+  const results = findTopProductMatches(trimmed, 5);
 
   if (results.length === 0) {
-    // No match at all
     return {
       messages: [
         '🔍 Buscando el producto en la base de datos...',
@@ -601,31 +613,29 @@ function handleProductName(input: string, data: ClaimData): BotResponse {
     };
   }
 
-  if (results.length === 1 || (bestMatch && results.length <= 3)) {
-    // Single best match or clear winner
-    const product = bestMatch ?? results[0];
+  if (results.length === 1) {
     return {
       messages: [
         '🔍 Buscando el producto en la base de datos...',
-        `Encontré este producto: **${product.name}**. ¿Querés seleccionarlo?`,
+        `Encontré este producto: **${results[0].name}**. ¿Querés seleccionarlo?`,
       ],
       quickReplies: ['Sí, seleccionar producto', 'No, buscar otro'],
       nextState: 'product_claim_product_confirm',
-      claimData: { ...data, product: product.name },
+      claimData: { ...data, product: results[0].name },
     };
   }
 
-  // Multiple matches — show top 3 as quick replies
-  const top3 = results.slice(0, 3);
-  const options = [...top3.map(p => p.name), 'Ninguno de estos'];
+  // Multiple matches — show up to 5 as quick replies
+  const top = results.slice(0, 5);
+  const options = [...top.map(p => p.name), 'Ninguno de estos'];
   return {
     messages: [
       '🔍 Buscando el producto en la base de datos...',
-      'Encontré varias coincidencias. ¿Cuál es el producto correcto?',
+      'Encontré estos productos posibles. Seleccioná el que corresponda:',
     ],
     quickReplies: options,
     nextState: 'product_claim_product_select',
-    claimData: { ...data, _productCandidates: top3.map(p => p.name) },
+    claimData: { ...data, _productCandidates: top.map(p => p.name) },
   };
 }
 
