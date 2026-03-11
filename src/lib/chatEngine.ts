@@ -160,9 +160,7 @@ const CLAIM_OPTIONS = [
 
 function buildClaimClosure(claimType: string, num: string): string[] {
   return [
-    `Tu ticket de ${claimType} ya fue ingresado en la base de datos con el número **${num}**. 📋`,
-    'Un asesor se va a comunicar con vos para continuar el seguimiento.',
-    'Este caso será derivado a Contact Center y luego asignado al equipo correspondiente.',
+    `Tu ticket de ${claimType} ya fue ingresado en la base de datos con el número **${num}**. Un asesor se va a comunicar con vos para continuar el seguimiento. 📋`,
     '_En esta versión demo la carga se simula localmente, pero en una implementación real el ticket quedaría registrado en el sistema._',
   ];
 }
