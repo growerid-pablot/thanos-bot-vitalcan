@@ -294,22 +294,22 @@ function handleMainMenu(input: string): BotResponse {
   switch (input) {
     case 'Realizar un reclamo':
       return {
-        messages: ['Perfecto, vamos a registrar tu reclamo. Para comenzar, necesito identificarte. Por favor indicame tu CUIT.'],
+        messages: ['Perfecto, vamos a registrar tu reclamo.', 'Para continuar, por favor indicame tu CUIT.'],
         nextState: 'awaiting_cuit_for_claim',
       };
     case 'Consultar lista de precios':
       return {
-        messages: ['Para continuar con tu consulta de lista de precios, por favor indicame tu CUIT.'],
+        messages: ['Para continuar, por favor indicame tu CUIT.'],
         nextState: 'awaiting_cuit_for_price_list',
       };
     case 'Consultar cuenta corriente':
       return {
-        messages: ['Para continuar con tu consulta de cuenta corriente, por favor indicame tu CUIT.'],
+        messages: ['Para continuar, por favor indicame tu CUIT.'],
         nextState: 'awaiting_cuit_for_account',
       };
     case 'Realizar un pedido de venta':
       return {
-        messages: ['Para continuar con tu pedido de venta, por favor indicame tu CUIT.'],
+        messages: ['Para continuar, por favor indicame tu CUIT.'],
         nextState: 'awaiting_cuit_for_sales_order',
       };
     default:
