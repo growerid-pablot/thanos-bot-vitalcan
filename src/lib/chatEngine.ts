@@ -89,11 +89,18 @@ export interface Message {
   quickReplies?: string[];
 }
 
+export interface TicketInfo {
+  ticketNumber: string;
+  claimType: string;
+  priority: string;
+}
+
 export interface BotResponse {
   messages: string[];
   quickReplies?: string[];
   nextState: ConversationState;
   claimData?: ClaimData;
+  ticketInfo?: TicketInfo;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -906,7 +913,8 @@ function handleHealthAlert(input: string, data: ClaimData): BotResponse {
       ],
       quickReplies: ['Volver al menú principal', 'Finalizar'],
       nextState: 'completed_step',
-      claimData: {},
+      claimData: data,
+      ticketInfo: { ticketNumber: num, claimType: 'asesoría veterinaria urgente', priority: 'Urgente' },
     };
   }
   if (input === 'Volver a escribir el motivo') {
@@ -1073,7 +1081,8 @@ function handleProductSummary(input: string, data: ClaimData): BotResponse {
       messages: buildClaimClosure('reclamo sobre productos', num),
       quickReplies: ['Volver al menú principal', 'Finalizar'],
       nextState: 'completed_step',
-      claimData: {},
+      claimData: data,
+      ticketInfo: { ticketNumber: num, claimType: 'reclamo sobre productos', priority: 'Normal' },
     };
   }
   if (input === 'Editar datos' || input.toLowerCase().includes('editar')) {
@@ -1198,7 +1207,8 @@ function handleBillingSummary(input: string, data: ClaimData): BotResponse {
       messages: buildClaimClosure('reclamo sobre facturación', num),
       quickReplies: ['Volver al menú principal', 'Finalizar'],
       nextState: 'completed_step',
-      claimData: {},
+      claimData: data,
+      ticketInfo: { ticketNumber: num, claimType: 'reclamo sobre facturación', priority: 'Normal' },
     };
   }
   if (input === 'Editar datos' || input.toLowerCase().includes('editar')) {
@@ -1330,7 +1340,8 @@ function handleDeliverySummary(input: string, data: ClaimData): BotResponse {
       messages: buildClaimClosure('reclamo sobre entrega', num),
       quickReplies: ['Volver al menú principal', 'Finalizar'],
       nextState: 'completed_step',
-      claimData: {},
+      claimData: data,
+      ticketInfo: { ticketNumber: num, claimType: 'reclamo sobre entrega', priority: 'Normal' },
     };
   }
   if (input === 'Editar datos' || input.toLowerCase().includes('editar')) {

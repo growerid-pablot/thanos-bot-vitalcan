@@ -9,10 +9,12 @@ import {
   type Message,
   type ConversationState,
   type ClaimData,
+  type TicketInfo,
   createMessage,
   processUserInput,
   getInitialBotResponse,
 } from '@/lib/chatEngine';
+import { sendTicketNotification } from '@/lib/ticketNotification';
 
 const BOT_DELAY = 800;
 const BOT_MULTI_DELAY = 600;
@@ -68,6 +70,14 @@ const ChatInterface = () => {
 
       const response = processUserInput(state, text.trim(), claimData);
       await addBotMessages(response.messages, response.quickReplies, response.nextState, response.claimData);
+
+      // Send email notification when a ticket is confirmed
+      if (response.ticketInfo) {
+        sendTicketNotification({
+          ...response.ticketInfo,
+          claimData: response.claimData ?? claimData,
+        });
+      }
     },
     [state, isTyping, addBotMessages, claimData]
   );
