@@ -89,11 +89,18 @@ export interface Message {
   quickReplies?: string[];
 }
 
+export interface TicketInfo {
+  ticketNumber: string;
+  claimType: string;
+  priority: string;
+}
+
 export interface BotResponse {
   messages: string[];
   quickReplies?: string[];
   nextState: ConversationState;
   claimData?: ClaimData;
+  ticketInfo?: TicketInfo;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
