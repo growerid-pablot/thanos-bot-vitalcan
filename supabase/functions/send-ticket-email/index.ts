@@ -76,6 +76,27 @@ serve(async (req) => {
 </body>
 </html>`;
 
+    // Send JSON to n8n webhook
+    try {
+      const webhookPayload = {
+        ticketNumber,
+        clientName,
+        claimType,
+        reason,
+        priority,
+        createdAt,
+        ...details,
+      };
+      const webhookRes = await fetch("https://n8n.growerid.com.ar/webhook/vitalcan-ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(webhookPayload),
+      });
+      console.log("Webhook n8n response:", webhookRes.status);
+    } catch (webhookErr) {
+      console.error("Error sending webhook to n8n:", webhookErr);
+    }
+
     const resendRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
