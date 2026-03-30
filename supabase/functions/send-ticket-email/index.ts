@@ -84,7 +84,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: "Thanos Bot <onboarding@resend.dev>",
-        to: ["soporte@growerid-n8n-demo.odoo.com"],
+        to: ["pablot@growerid.com.ar"],
         subject: `Nuevo ticket creado - ${ticketNumber}`,
         html: htmlBody,
       }),
