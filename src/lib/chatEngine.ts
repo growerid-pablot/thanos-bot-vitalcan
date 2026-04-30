@@ -614,6 +614,16 @@ function handleProductSelect(input: string, data: ClaimData): BotResponse {
       claimData: { ...data, product: null, _productCandidates: undefined },
     };
   }
+  // Validar que la opción seleccionada sea uno de los candidatos ofrecidos
+  const candidates = data._productCandidates ?? [];
+  if (!candidates.includes(input)) {
+    return {
+      messages: ['Por favor seleccioná uno de los productos sugeridos:'],
+      quickReplies: [...candidates, 'Ninguno de estos'],
+      nextState: 'claim_product_select',
+      claimData: data,
+    };
+  }
   const updated = { ...data, product: input, _productCandidates: undefined };
   if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
   return askLotNumber(updated);
