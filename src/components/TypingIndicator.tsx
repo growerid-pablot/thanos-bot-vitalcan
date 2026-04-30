@@ -5,7 +5,7 @@ const TypingIndicator = () => {
     <div className="flex gap-2 items-end animate-fade-in">
       <img
         src={bitiAvatar}
-        alt="Thanos"
+        alt="Biti"
         className="w-7 h-7 rounded-full flex-shrink-0 object-cover bg-white border border-border"
       />
       <div className="bg-[hsl(var(--bubble-bot))] px-4 py-3 rounded-2xl rounded-tl-md shadow-sm">
@@ -15,7 +15,7 @@ const TypingIndicator = () => {
           <span className="w-2 h-2 rounded-full bg-[hsl(var(--muted-foreground))] animate-bounce [animation-delay:300ms]" />
         </div>
       </div>
-      <span className="text-xs text-muted-foreground ml-1">Thanos está escribiendo...</span>
+      <span className="text-xs text-muted-foreground ml-1">Biti está escribiendo...</span>
     </div>
   );
 };

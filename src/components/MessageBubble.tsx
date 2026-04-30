@@ -28,7 +28,7 @@ const MessageBubble = ({ message }: MessageBubbleProps) => {
       {isBot && (
         <img
           src={bitiAvatar}
-          alt="Thanos"
+          alt="Biti"
           className="w-7 h-7 rounded-full mt-1 flex-shrink-0 object-cover bg-white border border-border"
         />
       )}
