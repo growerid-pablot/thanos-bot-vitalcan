@@ -219,7 +219,7 @@ function formatClaimSummary(d: ClaimData): string {
     lines.push(`• **Distribuidor:** ${d.pdvDistributor}`);
   }
 
-  lines.push(
+  const restantes = [
     `• **Producto:** ${d.product ?? '(pendiente)'}`,
     `• **Lote:** ${d.lot ?? '(pendiente)'}`,
     `• **Fecha de envasado:** ${d.packagingDate ?? '(pendiente)'}`,
@@ -234,7 +234,8 @@ function formatClaimSummary(d: ClaimData): string {
     `• **Dirección:** ${d.personalAddress ?? '(pendiente)'}`,
     `• **Código postal:** ${d.personalPostal ?? '(pendiente)'}`,
     `• **Horario de recepción:** ${d.personalReception ?? '(pendiente)'}`,
-  ).filter(Boolean);
+  ].filter(Boolean);
+  lines.push(...restantes);
 
   return lines.join('\n');
 }
