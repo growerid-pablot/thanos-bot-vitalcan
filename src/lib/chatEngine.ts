@@ -1,6 +1,3 @@
-import { findContactByIdNumber } from './contactRepository';
-import { findTopProductMatches, findProductByInternalReference } from './productMatching';
-import { suggestClaimReasons } from './reasonRepository';
 import { detectHealthUrgency } from './healthUrgency';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -8,77 +5,79 @@ import { detectHealthUrgency } from './healthUrgency';
 export type ConversationState =
   | 'initial'
   | 'main_menu'
-  // CUIT identification states
-  | 'awaiting_cuit_for_claim'
-  | 'confirm_client_for_claim'
-  | 'client_not_found_for_claim'
-  | 'awaiting_cuit_for_price_list'
-  | 'confirm_client_for_price_list'
-  | 'client_not_found_for_price_list'
-  | 'awaiting_cuit_for_account'
-  | 'confirm_client_for_account'
-  | 'client_not_found_for_account'
-  | 'awaiting_cuit_for_sales_order'
-  | 'confirm_client_for_sales_order'
-  | 'client_not_found_for_sales_order'
-  | 'claim_menu'
-  // Product claim states
-  | 'product_claim_product_name'
-  | 'product_claim_product_confirm'
-  | 'product_claim_product_select'
-  | 'product_claim_lot_number'
-  | 'product_claim_lot_missing'
-  | 'product_claim_packaging_date'
-  | 'product_claim_packaging_missing'
-  | 'product_claim_expiry_date'
-  | 'product_claim_expiry_missing'
-  | 'product_claim_reason'
-  | 'product_claim_reason_confirm'
-  | 'product_claim_reason_suggest'
-  | 'product_claim_health_alert'
-  | 'product_claim_purchase_location'
-  | 'product_claim_summary'
-  | 'product_claim_edit_select'
-  // Billing claim states
-  | 'billing_claim_invoice_date'
-  | 'billing_claim_invoice_number'
-  | 'billing_claim_reason'
-  | 'billing_claim_summary'
-  | 'billing_claim_edit_select'
-  // Delivery claim states
-  | 'delivery_claim_waybill_number'
-  | 'delivery_claim_delivery_date'
-  | 'delivery_claim_reason'
-  | 'delivery_claim_summary'
-  | 'delivery_claim_edit_select'
-  // Misc
+  // Identificación tipo de usuario
+  | 'awaiting_user_type'
+  | 'distributor_redirect'
+  | 'awaiting_pdv_or_consumer'
+  // Opciones principales
+  | 'purchase_info'
+  | 'consultation_info'
+  // Reclamo — tipo de usuario
+  | 'claim_user_confirmed'
+  // Reclamo — producto
+  | 'claim_product_name'
+  | 'claim_product_confirm'
+  | 'claim_product_select'
+  | 'claim_lot_number'
+  | 'claim_lot_missing'
+  | 'claim_packaging_date'
+  | 'claim_packaging_missing'
+  | 'claim_expiry_date'
+  | 'claim_expiry_missing'
+  // Reclamo — motivo agrupado
+  | 'claim_reason_category'
+  | 'claim_reason_subcategory'
+  | 'claim_reason_detail'
+  | 'claim_health_alert'
+  // Reclamo — compra
+  | 'claim_purchase_modality'
+  | 'claim_purchase_store'
+  | 'claim_purchase_ml_seller'
+  // Reclamo — imágenes
+  | 'claim_images_info'
+  // Reclamo — datos personales
+  | 'claim_personal_name'
+  | 'claim_personal_email'
+  | 'claim_personal_phone'
+  | 'claim_personal_address'
+  | 'claim_personal_postal'
+  | 'claim_personal_reception'
+  // Reclamo — PDV datos adicionales
+  | 'claim_pdv_distributor'
+  // Resumen y cierre
+  | 'claim_summary'
+  | 'claim_edit_select'
   | 'completed_step';
 
 export interface ClaimData {
-  // Client info
-  clientName?: string | null;
-  clientCuit?: string | null;
-  clientIsNew?: boolean;
-  // Product claim
+  // Tipo de usuario
+  userType?: 'consumer' | 'pdv' | null;
+  // PDV
+  pdvDistributor?: string | null;
+  // Producto
   product?: string | null;
+  _productCandidates?: string[];
+  // Lote y fechas
   lot?: string | null;
   packagingDate?: string | null;
   expiryDate?: string | null;
-  reason?: string | null;
-  reasonFormatted?: string | null;
-  purchaseLocation?: string | null;
-  // billing
-  invoiceDate?: string | null;
-  invoiceNumber?: string | null;
-  // delivery
-  waybillNumber?: string | null;
-  deliveryDate?: string | null;
-  // track where we came from for edits
+  // Motivo
+  reasonCategory?: string | null;
+  reasonSubcategory?: string | null;
+  reasonDetail?: string | null;
+  // Compra
+  purchaseModality?: 'presencial' | 'virtual' | null;
+  purchaseStore?: string | null;
+  mlSeller?: string | null;
+  // Datos personales
+  personalName?: string | null;
+  personalEmail?: string | null;
+  personalPhone?: string | null;
+  personalAddress?: string | null;
+  personalPostal?: string | null;
+  personalReception?: string | null;
+  // Control de edición
   editReturnState?: ConversationState;
-  // temp for product multi-match
-  _productCandidates?: string[];
-  // temp for reason alternatives
-  _reasonAlternatives?: { id: string; name: string }[];
 }
 
 export interface Message {
@@ -124,10 +123,6 @@ function generateClaimNumber(): string {
 
 // ─── Validators ──────────────────────────────────────────────────────────────
 
-function isValidLot(v: string): boolean {
-  return /^[a-zA-Z0-9\-]{1,12}$/.test(v.trim());
-}
-
 function isValidDate(v: string): boolean {
   const m = v.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (!m) return false;
@@ -138,55 +133,135 @@ function isValidDate(v: string): boolean {
   return true;
 }
 
+// Lote: 1 letra + 5 números (ej: A12345)
+function isValidLot(v: string): boolean {
+  return /^[a-zA-Z]\d{5}$/.test(v.trim());
+}
+
 function isMissingDataResponse(input: string): boolean {
   const lower = input.toLowerCase();
-  const patterns = ['no lo tengo', 'no tengo', 'no encuentro', 'no lo veo', 'no dispongo', 'no sé', 'no se', 'no lo sé', 'no recuerdo', 'no me acuerdo'];
+  const patterns = ['no lo tengo', 'no tengo', 'no encuentro', 'no lo veo', 'no dispongo', 'no sé', 'no se', 'no lo sé', 'no recuerdo', 'no me acuerdo', 'no lo recuerdo'];
   return patterns.some(p => lower.includes(p));
 }
 
-function isShortReason(v: string): boolean {
-  return v.trim().length < 15;
-}
+// ─── Motivos agrupados ────────────────────────────────────────────────────────
 
-// ─── Menus ───────────────────────────────────────────────────────────────────
+const REASON_CATEGORIES = [
+  'Problemas de envase',
+  'Contenido / calidad del producto',
+  'Salud de mi mascota',
+];
+
+const REASON_SUBCATEGORIES: Record<string, string[]> = {
+  'Problemas de envase': [
+    'Bolsa rota o mal sellada',
+    'Bolsa con sticker sin lata',
+    'Falta rótulo (lote/vencimiento/elaboración)',
+    'Menos kilos de los indicados',
+    'Envase lata dañado',
+    'Envase pouch dañado',
+  ],
+  'Contenido / calidad del producto': [
+    'Presencia de bichos',
+    'Hongos / moho',
+    'Mal olor',
+    'Material extraño / objetos',
+    'Problema con las croquetas',
+    'Palatabilidad (mascota no lo acepta)',
+  ],
+  'Salud de mi mascota': [
+    'Gastroenteritis / diarrea / vómitos',
+    'Problemas de piel y pelo',
+    'Problemas urinarios',
+    'Otro problema de salud',
+  ],
+};
+
+// ─── Menus principales ───────────────────────────────────────────────────────
 
 const MAIN_MENU_OPTIONS = [
-  'Realizar un reclamo',
-  'Consultar lista de precios',
-  'Consultar cuenta corriente',
-  'Realizar un pedido de venta',
+  'Hacer un reclamo',
+  'Quiero comprar',
+  'Tengo una consulta',
 ];
 
-const CLAIM_OPTIONS = [
-  'Reclamo sobre productos',
-  'Reclamo sobre facturación',
-  'Reclamo sobre entregas',
-];
+// ─── Cierre de ticket ────────────────────────────────────────────────────────
 
-// ─── Claim closure messages ──────────────────────────────────────────────────
-
-function buildClaimClosure(claimType: string, num: string): string[] {
+function buildClaimClosure(num: string, priority: string): string[] {
+  const base = `Tu reclamo fue registrado con el número **${num}**. Un asesor del área de Calidad se va a comunicar con vos para continuar el seguimiento. 📋`;
+  if (priority === 'Urgente') {
+    return [
+      `⚠️ Tu reclamo fue marcado como **prioritario** y registrado con el número **${num}**. Un asesor va a comunicarse con vos a la brevedad. 🩺`,
+      '_En esta versión demo la carga se simula localmente._',
+    ];
+  }
   return [
-    `Tu ticket de ${claimType} ya fue ingresado en la base de datos con el número **${num}**. Un asesor se va a comunicar con vos para continuar el seguimiento. 📋`,
-    '_En esta versión demo la carga se simula localmente, pero en una implementación real el ticket quedaría registrado en el sistema._',
+    base,
+    '_En esta versión demo la carga se simula localmente, pero en una implementación real el ticket quedaría registrado en el sistema ODU._',
   ];
 }
 
-// ─── Client info line for summaries ──────────────────────────────────────────
+// ─── Resumen del reclamo ─────────────────────────────────────────────────────
 
-function clientLine(data: ClaimData): string {
-  if (data.clientIsNew || !data.clientName) {
-    return `• **Cliente:** Cliente nuevo${data.clientCuit ? ` (CUIT: ${data.clientCuit})` : ''}`;
+function formatClaimSummary(d: ClaimData): string {
+  const tipo = d.userType === 'pdv' ? 'Punto de venta' : 'Consumidor final';
+  const modality = d.purchaseModality === 'virtual' ? 'Virtual' : d.purchaseModality === 'presencial' ? 'Presencial' : '(pendiente)';
+  const store = d.purchaseModality === 'virtual' && d.mlSeller
+    ? `${d.purchaseStore ?? 'Mercado Libre'} — Vendedor: ${d.mlSeller}`
+    : (d.purchaseStore ?? '(pendiente)');
+
+  const lines = [
+    `📋 **Resumen del reclamo**`,
+    `• **Tipo:** ${tipo}`,
+  ];
+
+  if (d.userType === 'pdv' && d.pdvDistributor) {
+    lines.push(`• **Distribuidor:** ${d.pdvDistributor}`);
   }
-  return `• **Cliente:** ${data.clientName}${data.clientCuit ? ` (CUIT: ${data.clientCuit})` : ''}`;
+
+  lines.push(
+    `• **Producto:** ${d.product ?? '(pendiente)'}`,
+    `• **Lote:** ${d.lot ?? '(pendiente)'}`,
+    `• **Fecha de envasado:** ${d.packagingDate ?? '(pendiente)'}`,
+    `• **Fecha de vencimiento:** ${d.expiryDate ?? '(pendiente)'}`,
+    `• **Motivo:** ${d.reasonSubcategory ?? d.reasonCategory ?? '(pendiente)'}`,
+    d.reasonDetail ? `• **Descripción:** ${d.reasonDetail}` : '',
+    `• **Modalidad de compra:** ${modality}`,
+    `• **Local / canal de compra:** ${store}`,
+    `• **Nombre:** ${d.personalName ?? '(pendiente)'}`,
+    `• **Email:** ${d.personalEmail ?? '(pendiente)'}`,
+    `• **Teléfono:** ${d.personalPhone ?? '(pendiente)'}`,
+    `• **Dirección:** ${d.personalAddress ?? '(pendiente)'}`,
+    `• **Código postal:** ${d.personalPostal ?? '(pendiente)'}`,
+    `• **Horario de recepción:** ${d.personalReception ?? '(pendiente)'}`,
+  ).filter(Boolean);
+
+  return lines.join('\n');
 }
 
-// ─── Main entry point ────────────────────────────────────────────────────────
+// ─── Búsqueda de producto simple ─────────────────────────────────────────────
+// Importamos el matcher existente si está disponible, si no usamos fallback básico
+let _findTopProductMatches: ((q: string, n: number) => { name: string }[]) | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const mod = require('./productMatching');
+  _findTopProductMatches = mod.findTopProductMatches;
+} catch {
+  _findTopProductMatches = null;
+}
+
+function searchProducts(query: string): { name: string }[] {
+  if (_findTopProductMatches) return _findTopProductMatches(query, 5);
+  return [];
+}
+
+// ─── Entry point ─────────────────────────────────────────────────────────────
 
 export function getInitialBotResponse(): BotResponse {
   return {
     messages: [
-      '¡Hola! Soy Thanos, el asistente virtual de Vitalcan. Estoy acá para ayudarte con reclamos, consultas y gestiones comerciales. Decime qué necesitás hacer y te voy guiando paso a paso.',
+      '¡Hola! Soy **Biti**, el asistente virtual de Vitalcán. 🐾',
+      '¿En qué puedo ayudarte hoy?',
     ],
     quickReplies: MAIN_MENU_OPTIONS,
     nextState: 'main_menu',
@@ -199,95 +274,114 @@ export function processUserInput(state: ConversationState, input: string, claimD
   switch (state) {
     case 'initial':
       return getInitialBotResponse();
+
     case 'main_menu':
       return handleMainMenu(input);
 
-    // ── CUIT identification ─────────────────────────────────────────────
-    case 'awaiting_cuit_for_claim':
-      return handleCuit(input, data, 'claim');
-    case 'confirm_client_for_claim':
-      return handleClientConfirm(input, data, 'claim');
-    case 'client_not_found_for_claim':
-      return handleClientNotFound(input, data, 'claim');
-    case 'awaiting_cuit_for_price_list':
-      return handleCuit(input, data, 'price_list');
-    case 'confirm_client_for_price_list':
-      return handleClientConfirm(input, data, 'price_list');
-    case 'client_not_found_for_price_list':
-      return handleClientNotFound(input, data, 'price_list');
-    case 'awaiting_cuit_for_account':
-      return handleCuit(input, data, 'account');
-    case 'confirm_client_for_account':
-      return handleClientConfirm(input, data, 'account');
-    case 'client_not_found_for_account':
-      return handleClientNotFound(input, data, 'account');
-    case 'awaiting_cuit_for_sales_order':
-      return handleCuit(input, data, 'sales_order');
-    case 'confirm_client_for_sales_order':
-      return handleClientConfirm(input, data, 'sales_order');
-    case 'client_not_found_for_sales_order':
-      return handleClientNotFound(input, data, 'sales_order');
+    // ── Identificación de tipo de usuario ──────────────────────────────────
+    case 'awaiting_user_type':
+      return handleUserType(input, data);
 
-    case 'claim_menu':
-      return handleClaimMenu(input, data);
+    case 'distributor_redirect':
+      return handleDistributorRedirect(input);
 
-    // ── Product claim ─────────────────────────────────────────────────────
-    case 'product_claim_product_name':
+    case 'awaiting_pdv_or_consumer':
+      return handlePdvOrConsumer(input, data);
+
+    // ── Opciones: compra y consulta ────────────────────────────────────────
+    case 'purchase_info':
+      return handlePurchaseInfo(input);
+
+    case 'consultation_info':
+      return handleConsultationInfo(input);
+
+    // ── Reclamo: producto ─────────────────────────────────────────────────
+    case 'claim_user_confirmed':
+      return handleClaimUserConfirmed(input, data);
+
+    case 'claim_product_name':
       return handleProductName(input, data);
-    case 'product_claim_product_confirm':
+
+    case 'claim_product_confirm':
       return handleProductConfirm(input, data);
-    case 'product_claim_product_select':
+
+    case 'claim_product_select':
       return handleProductSelect(input, data);
-    case 'product_claim_lot_number':
+
+    case 'claim_lot_number':
       return handleLotNumber(input, data);
-    case 'product_claim_lot_missing':
+
+    case 'claim_lot_missing':
       return handleLotMissing(input, data);
-    case 'product_claim_packaging_date':
+
+    case 'claim_packaging_date':
       return handlePackagingDate(input, data);
-    case 'product_claim_packaging_missing':
+
+    case 'claim_packaging_missing':
       return handlePackagingMissing(input, data);
-    case 'product_claim_expiry_date':
+
+    case 'claim_expiry_date':
       return handleExpiryDate(input, data);
-    case 'product_claim_expiry_missing':
+
+    case 'claim_expiry_missing':
       return handleExpiryMissing(input, data);
-    case 'product_claim_reason':
-      return handleProductReason(input, data);
-    case 'product_claim_reason_confirm':
-      return handleProductReasonConfirm(input, data);
-    case 'product_claim_reason_suggest':
-      return handleProductReasonSuggest(input, data);
-    case 'product_claim_health_alert':
+
+    // ── Reclamo: motivo ────────────────────────────────────────────────────
+    case 'claim_reason_category':
+      return handleReasonCategory(input, data);
+
+    case 'claim_reason_subcategory':
+      return handleReasonSubcategory(input, data);
+
+    case 'claim_reason_detail':
+      return handleReasonDetail(input, data);
+
+    case 'claim_health_alert':
       return handleHealthAlert(input, data);
-    case 'product_claim_purchase_location':
-      return handlePurchaseLocation(input, data);
-    case 'product_claim_summary':
-      return handleProductSummary(input, data);
-    case 'product_claim_edit_select':
-      return handleProductEditSelect(input, data);
 
-    // ── Billing claim ─────────────────────────────────────────────────────
-    case 'billing_claim_invoice_date':
-      return handleBillingInvoiceDate(input, data);
-    case 'billing_claim_invoice_number':
-      return handleBillingInvoiceNumber(input, data);
-    case 'billing_claim_reason':
-      return handleBillingReason(input, data);
-    case 'billing_claim_summary':
-      return handleBillingSummary(input, data);
-    case 'billing_claim_edit_select':
-      return handleBillingEditSelect(input, data);
+    // ── Reclamo: compra ────────────────────────────────────────────────────
+    case 'claim_purchase_modality':
+      return handlePurchaseModality(input, data);
 
-    // ── Delivery claim ────────────────────────────────────────────────────
-    case 'delivery_claim_waybill_number':
-      return handleDeliveryWaybill(input, data);
-    case 'delivery_claim_delivery_date':
-      return handleDeliveryDate(input, data);
-    case 'delivery_claim_reason':
-      return handleDeliveryReason(input, data);
-    case 'delivery_claim_summary':
-      return handleDeliverySummary(input, data);
-    case 'delivery_claim_edit_select':
-      return handleDeliveryEditSelect(input, data);
+    case 'claim_purchase_store':
+      return handlePurchaseStore(input, data);
+
+    case 'claim_purchase_ml_seller':
+      return handleMlSeller(input, data);
+
+    // ── Reclamo: imágenes ─────────────────────────────────────────────────
+    case 'claim_images_info':
+      return handleImagesInfo(input, data);
+
+    // ── Reclamo: datos personales ─────────────────────────────────────────
+    case 'claim_personal_name':
+      return handlePersonalName(input, data);
+
+    case 'claim_personal_email':
+      return handlePersonalEmail(input, data);
+
+    case 'claim_personal_phone':
+      return handlePersonalPhone(input, data);
+
+    case 'claim_personal_address':
+      return handlePersonalAddress(input, data);
+
+    case 'claim_personal_postal':
+      return handlePersonalPostal(input, data);
+
+    case 'claim_personal_reception':
+      return handlePersonalReception(input, data);
+
+    // ── PDV: distribuidor ─────────────────────────────────────────────────
+    case 'claim_pdv_distributor':
+      return handlePdvDistributor(input, data);
+
+    // ── Resumen y cierre ──────────────────────────────────────────────────
+    case 'claim_summary':
+      return handleClaimSummary(input, data);
+
+    case 'claim_edit_select':
+      return handleClaimEditSelect(input, data);
 
     case 'completed_step':
       return handleCompletedStep(input);
@@ -297,1087 +391,711 @@ export function processUserInput(state: ConversationState, input: string, claimD
   }
 }
 
-// ─── Main menu ───────────────────────────────────────────────────────────────
+// ─── Menú principal ──────────────────────────────────────────────────────────
 
 function handleMainMenu(input: string): BotResponse {
   switch (input) {
-    case 'Realizar un reclamo':
+    case 'Hacer un reclamo':
       return {
-        messages: ['Perfecto, vamos a registrar tu reclamo.', 'Para continuar, por favor indicame tu CUIT.'],
-        nextState: 'awaiting_cuit_for_claim',
+        messages: [
+          'Perfecto. Antes de continuar, necesito saber cómo nos conociste.',
+          '¿Comprás directamente a Vitalcán?',
+        ],
+        quickReplies: ['Sí, soy cliente directo / distribuidor', 'No, compro en una veterinaria o pet shop', 'No, compro en supermercado u otro comercio'],
+        nextState: 'awaiting_user_type',
+        claimData: {},
       };
-    case 'Consultar lista de precios':
+    case 'Quiero comprar':
       return {
-        messages: ['Para continuar, por favor indicame tu CUIT.'],
-        nextState: 'awaiting_cuit_for_price_list',
+        messages: [
+          '¡Genial! Para conocer nuestros productos y puntos de venta podés visitar nuestra web o contactar a nuestros representantes.',
+          '📄 [Descargar lista de precios](/Lista_de_precios.pdf)',
+          '¿Necesitás algo más?',
+        ],
+        quickReplies: ['Volver al menú principal', 'Hacer un reclamo', 'Tengo una consulta'],
+        nextState: 'purchase_info',
+        claimData: {},
       };
-    case 'Consultar cuenta corriente':
+    case 'Tengo una consulta':
       return {
-        messages: ['Para continuar, por favor indicame tu CUIT.'],
-        nextState: 'awaiting_cuit_for_account',
-      };
-    case 'Realizar un pedido de venta':
-      return {
-        messages: ['Para continuar, por favor indicame tu CUIT.'],
-        nextState: 'awaiting_cuit_for_sales_order',
+        messages: [
+          'Con gusto te ayudo. Contame brevemente tu consulta y un asesor te va a responder a la brevedad.',
+          '¿Cuál es tu consulta?',
+        ],
+        nextState: 'consultation_info',
+        claimData: {},
       };
     default:
       return {
-        messages: ['No entendí tu selección. Por favor elegí una de las opciones disponibles.'],
+        messages: ['¿En qué puedo ayudarte?'],
         quickReplies: MAIN_MENU_OPTIONS,
         nextState: 'main_menu',
       };
   }
 }
 
-// ─── CUIT identification (shared) ────────────────────────────────────────────
+// ─── Identificación tipo de usuario ─────────────────────────────────────────
 
-type CuitFlow = 'claim' | 'price_list' | 'account' | 'sales_order';
-
-function handleCuit(input: string, data: ClaimData, flow: CuitFlow): BotResponse {
-  const cuit = input.replace(/[\s\-]/g, '').trim();
-
-  if (cuit.length < 5) {
+function handleUserType(input: string, data: ClaimData): BotResponse {
+  if (input === 'Sí, soy cliente directo / distribuidor') {
     return {
-      messages: ['El CUIT ingresado parece incompleto. Por favor, ingresalo con el formato correcto (ej: 30-71332270-5 o 30713322705).'],
-      nextState: `awaiting_cuit_for_${flow}` as ConversationState,
+      messages: [
+        'Entendido. Los clientes directos y distribuidores deben gestionar sus reclamos a través del **portal de clientes oficial**.',
+        '👉 Por favor ingresá a tu portal para registrar tu reclamo allí. Si tenés problemas para acceder, contactá a tu representante comercial.',
+        '¿Puedo ayudarte con algo más?',
+      ],
+      quickReplies: ['Volver al menú principal', 'Quiero comprar', 'Tengo una consulta'],
+      nextState: 'distributor_redirect',
+      claimData: { ...data, userType: null },
+    };
+  }
+
+  // Punto de venta o consumidor final
+  const isPdv =
+    input === 'No, compro en una veterinaria o pet shop' ||
+    input.toLowerCase().includes('veterinaria') ||
+    input.toLowerCase().includes('pet shop') ||
+    input.toLowerCase().includes('punto de venta');
+
+  if (isPdv) {
+    return {
+      messages: [
+        'Perfecto. ¿Sos vos quien sufrió el inconveniente o estás reportando el reclamo en nombre de un cliente?',
+      ],
+      quickReplies: ['Soy el punto de venta y quiero hacer el reclamo yo', 'Soy consumidor final'],
+      nextState: 'awaiting_pdv_or_consumer',
+      claimData: { ...data },
+    };
+  }
+
+  // Consumidor final (supermercado u otro)
+  return startClaimFlow({ ...data, userType: 'consumer' });
+}
+
+function handleDistributorRedirect(input: string): BotResponse {
+  if (input === 'Volver al menú principal') {
+    return {
+      messages: ['¡Por supuesto! ¿En qué más puedo ayudarte?'],
+      quickReplies: MAIN_MENU_OPTIONS,
+      nextState: 'main_menu',
+    };
+  }
+  return handleMainMenu(input);
+}
+
+function handlePdvOrConsumer(input: string, data: ClaimData): BotResponse {
+  if (input === 'Soy el punto de venta y quiero hacer el reclamo yo') {
+    return {
+      messages: [
+        'Entendido. ¿A qué distribuidor le comprás el producto?',
+        'Si comprás directamente a Vitalcán en el AMBA, indicá "Compra directa Vitalcán".',
+      ],
+      nextState: 'claim_pdv_distributor',
+      claimData: { ...data, userType: 'pdv' },
+    };
+  }
+  // Consumidor final
+  return startClaimFlow({ ...data, userType: 'consumer' });
+}
+
+function handlePdvDistributor(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 2) {
+    return {
+      messages: ['¿Podrías indicarme el nombre del distribuidor o proveedor?'],
+      nextState: 'claim_pdv_distributor',
       claimData: data,
     };
   }
-
-  const contact = findContactByIdNumber(cuit);
-
-  if (contact) {
-    return {
-      messages: [`Encontré este cliente: **${contact.name}**. ¿Podés confirmarme si corresponde a tu cuenta?`],
-      quickReplies: ['Sí, es correcto', 'No, buscar nuevamente', 'Crear cliente nuevo'],
-      nextState: `confirm_client_for_${flow}` as ConversationState,
-      claimData: { ...data, clientName: contact.name, clientCuit: cuit, clientIsNew: false },
-    };
-  }
-
-  // Not found — show options for ALL flows
-  return {
-    messages: ['No encontré una coincidencia para ese CUIT en la base de clientes.'],
-    quickReplies: ['Reintentar búsqueda', 'Continuar como cliente nuevo'],
-    nextState: `client_not_found_for_${flow}` as ConversationState,
-    claimData: { ...data, clientCuit: cuit, clientIsNew: true, clientName: null },
-  };
+  const updated = { ...data, pdvDistributor: trimmed };
+  return startClaimFlow(updated);
 }
 
-function handleClientConfirm(input: string, data: ClaimData, flow: CuitFlow): BotResponse {
-  if (input === 'Sí, es correcto' || input.toLowerCase().includes('sí') || input.toLowerCase().includes('si')) {
-    return continueAfterClientIdentified(data, flow);
-  }
-  if (input === 'No, buscar nuevamente') {
-    return {
-      messages: ['Para continuar, por favor indicame tu CUIT.'],
-      nextState: `awaiting_cuit_for_${flow}` as ConversationState,
-      claimData: { ...data, clientName: null, clientCuit: null, clientIsNew: false },
-    };
-  }
-  if (input === 'Crear cliente nuevo') {
-    return continueAsNewClient({ ...data, clientIsNew: true, clientName: null }, flow);
-  }
-  // Fallback
+function startClaimFlow(data: ClaimData): BotResponse {
   return {
-    messages: ['Por favor seleccioná una opción.'],
-    quickReplies: ['Sí, es correcto', 'No, buscar nuevamente', 'Crear cliente nuevo'],
-    nextState: `confirm_client_for_${flow}` as ConversationState,
+    messages: [
+      'Vamos a registrar tu reclamo paso a paso. 📋',
+      'Para comenzar, indicame el nombre del producto.',
+    ],
+    nextState: 'claim_product_name',
     claimData: data,
   };
 }
 
-function handleClientNotFound(input: string, data: ClaimData, flow: CuitFlow): BotResponse {
-  if (input === 'Reintentar búsqueda') {
+// ─── Compra / Consulta ────────────────────────────────────────────────────────
+
+function handlePurchaseInfo(input: string): BotResponse {
+  if (input === 'Volver al menú principal') {
+    return { messages: ['¿En qué más puedo ayudarte?'], quickReplies: MAIN_MENU_OPTIONS, nextState: 'main_menu' };
+  }
+  return handleMainMenu(input);
+}
+
+function handleConsultationInfo(input: string): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 5) {
     return {
-      messages: ['Para continuar, por favor indicame tu CUIT.'],
-      nextState: `awaiting_cuit_for_${flow}` as ConversationState,
-      claimData: { ...data, clientName: null, clientCuit: null, clientIsNew: false },
+      messages: ['¿Podrías contarme un poco más sobre tu consulta?'],
+      nextState: 'consultation_info',
     };
   }
-  if (input === 'Continuar como cliente nuevo') {
-    return continueAsNewClient(data, flow);
-  }
-  // Fallback
-  return {
-    messages: ['Por favor seleccioná una opción.'],
-    quickReplies: ['Reintentar búsqueda', 'Continuar como cliente nuevo'],
-    nextState: `client_not_found_for_${flow}` as ConversationState,
-    claimData: data,
-  };
-}
-
-function continueAsNewClient(data: ClaimData, flow: CuitFlow): BotResponse {
-  const newData = { ...data, clientIsNew: true };
-
-  switch (flow) {
-    case 'claim':
-      return {
-        messages: [
-          'Perfecto. Para esta demo voy a continuar registrándote como cliente nuevo.',
-          'Indicame por favor sobre qué tipo de reclamo querés avanzar.',
-        ],
-        quickReplies: CLAIM_OPTIONS,
-        nextState: 'claim_menu',
-        claimData: newData,
-      };
-    case 'price_list':
-      return {
-        messages: [
-          'Perfecto. Para esta demo voy a continuar como cliente nuevo y te comparto la lista de precios vigente.',
-          '📄 [Descargar lista de precios](/Lista_de_precios.pdf)',
-        ],
-        quickReplies: ['Volver al menú principal', 'Finalizar'],
-        nextState: 'completed_step',
-        claimData: {},
-      };
-    case 'account':
-      return {
-        messages: [
-          'Como no pude identificar tu CUIT en la base de clientes, por favor comunicate con **facturaciones@vitalcan.com.ar** para realizar la consulta con un agente.',
-        ],
-        quickReplies: ['Volver al menú principal', 'Finalizar'],
-        nextState: 'completed_step',
-        claimData: {},
-      };
-    case 'sales_order':
-      return {
-        messages: [
-          'No encontré una coincidencia para ese CUIT. Para esta demo voy a continuar registrándote como cliente nuevo.',
-          'Excelente. Esta es una versión demo. En una etapa futura estaremos recibiendo tu pedido por WhatsApp y procesándolo de forma integrada.',
-        ],
-        quickReplies: ['Volver al menú principal', 'Finalizar'],
-        nextState: 'completed_step',
-        claimData: {},
-      };
-  }
-}
-
-function continueAfterClientIdentified(data: ClaimData, flow: CuitFlow): BotResponse {
-  switch (flow) {
-    case 'claim':
-      return {
-        messages: ['Perfecto, cliente confirmado. ✅', 'Indicame por favor sobre qué tipo de reclamo querés avanzar.'],
-        quickReplies: CLAIM_OPTIONS,
-        nextState: 'claim_menu',
-        claimData: data,
-      };
-    case 'price_list':
-      return {
-        messages: ['Perfecto. Te comparto la lista de precios vigente.', '📄 [Descargar lista de precios](/Lista_de_precios.pdf)'],
-        quickReplies: ['Volver al menú principal', 'Finalizar'],
-        nextState: 'completed_step',
-        claimData: {},
-      };
-    case 'account':
-      return {
-        messages: [
-          'Perfecto, cliente confirmado. ✅',
-          `Te comparto tu cuenta corriente. En el contexto de esta demo no voy a mostrar un dato real, pero en una implementación productiva esta consulta se conectará con la base de datos del sistema para devolver la información real del cliente **${data.clientName}**.`,
-        ],
-        quickReplies: ['Volver al menú principal', 'Finalizar'],
-        nextState: 'completed_step',
-        claimData: {},
-      };
-    case 'sales_order':
-      return {
-        messages: [
-          'Perfecto, cliente confirmado. ✅',
-          'Excelente. Esta es una versión demo. En una etapa futura estaremos recibiendo tu pedido por WhatsApp y procesándolo de forma integrada.',
-        ],
-        quickReplies: ['Volver al menú principal', 'Finalizar'],
-        nextState: 'completed_step',
-        claimData: {},
-      };
-  }
-}
-
-// ─── Claim menu ──────────────────────────────────────────────────────────────
-
-function handleClaimMenu(input: string, data: ClaimData): BotResponse {
-  switch (input) {
-    case 'Reclamo sobre productos':
-      return {
-        messages: [
-          'Entiendo. Vamos a avanzar con tu reclamo sobre productos y te voy a ir guiando paso a paso para registrar toda la información necesaria.',
-          'Voy a pedirte información sobre el producto, lote, fechas y motivo del reclamo. Si no tenés alguno de los datos a mano, avisame y te acompaño. 😊',
-          'Para comenzar, indicame por favor el nombre del producto.',
-        ],
-        nextState: 'product_claim_product_name',
-        claimData: { ...data },
-      };
-    case 'Reclamo sobre facturación':
-      return {
-        messages: [
-          'Entiendo. Vamos a avanzar con tu reclamo sobre facturación.',
-          'Te voy a pedir algunos datos de la factura y el motivo del inconveniente. Vamos paso a paso.',
-          'Indicame por favor la fecha de emisión de la factura.',
-        ],
-        nextState: 'billing_claim_invoice_date',
-        claimData: { ...data },
-      };
-    case 'Reclamo sobre entregas':
-      return {
-        messages: [
-          'Entiendo. Vamos a avanzar con tu reclamo sobre entrega.',
-          'Te voy a pedir algunos datos del remito y el motivo del inconveniente. Vamos paso a paso.',
-          'Por favor indicame el número de remito, tal como figura en el comprobante.',
-        ],
-        nextState: 'delivery_claim_waybill_number',
-        claimData: { ...data },
-      };
-    default:
-      return {
-        messages: ['Por favor elegí una de las opciones de reclamo disponibles.'],
-        quickReplies: CLAIM_OPTIONS,
-        nextState: 'claim_menu',
-        claimData: data,
-      };
-  }
-}
-
-// ─── Edit return helpers ─────────────────────────────────────────────────────
-
-function returnToProductSummary(data: ClaimData): BotResponse {
-  const cleaned = { ...data, editReturnState: undefined };
+  const num = generateClaimNumber();
   return {
     messages: [
-      'Dato actualizado. ✅ Este es el resumen actualizado:',
-      formatProductSummary(cleaned),
-      '¿Querés confirmar esta información?',
+      `Gracias. Tu consulta fue registrada con el número **${num}**. Un asesor te va a responder a la brevedad. 😊`,
     ],
-    quickReplies: ['Confirmar reclamo', 'Editar datos'],
-    nextState: 'product_claim_summary',
-    claimData: cleaned,
+    quickReplies: ['Volver al menú principal', 'Hacer un reclamo', 'Finalizar'],
+    nextState: 'completed_step',
+    ticketInfo: { ticketNumber: num, claimType: 'consulta', priority: 'Normal' },
   };
 }
 
-function returnToBillingSummary(data: ClaimData): BotResponse {
-  const cleaned = { ...data, editReturnState: undefined };
-  return {
-    messages: [
-      'Dato actualizado. ✅ Este es el resumen actualizado:',
-      formatBillingSummary(cleaned),
-      '¿Querés confirmar esta información?',
-    ],
-    quickReplies: ['Confirmar reclamo', 'Editar datos'],
-    nextState: 'billing_claim_summary',
-    claimData: cleaned,
-  };
-}
-
-function returnToDeliverySummary(data: ClaimData): BotResponse {
-  const cleaned = { ...data, editReturnState: undefined };
-  return {
-    messages: [
-      'Dato actualizado. ✅ Este es el resumen actualizado:',
-      formatDeliverySummary(cleaned),
-      '¿Querés confirmar esta información?',
-    ],
-    quickReplies: ['Confirmar reclamo', 'Editar datos'],
-    nextState: 'delivery_claim_summary',
-    claimData: cleaned,
-  };
-}
-
-// ─── Product claim handlers ──────────────────────────────────────────────────
+// ─── Producto ─────────────────────────────────────────────────────────────────
 
 function handleProductName(input: string, data: ClaimData): BotResponse {
   const trimmed = input.trim();
   if (trimmed.length < 3) {
     return {
-      messages: ['El nombre del producto parece muy corto. ¿Podrías indicarme el nombre completo tal como figura en el envase?'],
-      nextState: 'product_claim_product_name',
+      messages: ['El nombre parece muy corto. ¿Podés indicarme el nombre completo tal como figura en el envase?'],
+      nextState: 'claim_product_name',
       claimData: data,
     };
   }
 
-  // Try internal reference first
-  const refMatch = findProductByInternalReference(trimmed);
-  if (refMatch) {
-    return {
-      messages: [
-        '🔍 Buscando el producto en la base de datos...',
-        `Encontré este producto por referencia interna: **${refMatch.name}**. ¿Querés seleccionarlo?`,
-      ],
-      quickReplies: ['Sí, seleccionar producto', 'No, buscar otro'],
-      nextState: 'product_claim_product_confirm',
-      claimData: { ...data, product: refMatch.name },
-    };
-  }
-
-  // Search using robust matching
-  const results = findTopProductMatches(trimmed, 5);
+  const results = searchProducts(trimmed);
 
   if (results.length === 0) {
     return {
-      messages: [
-        '🔍 Buscando el producto en la base de datos...',
-        `No encontré el producto en la base local. Para esta demo voy a registrar el ticket con el producto: **${trimmed}**.`,
-      ],
-      quickReplies: ['Sí, continuar', 'Buscar otro producto'],
-      nextState: 'product_claim_product_confirm',
+      messages: [`No encontré el producto en la base de datos. ¿Querés continuar con: **"${trimmed}"**?`],
+      quickReplies: ['Sí, continuar con ese producto', 'No, escribirlo de nuevo'],
+      nextState: 'claim_product_confirm',
       claimData: { ...data, product: trimmed },
     };
   }
 
   if (results.length === 1) {
     return {
-      messages: [
-        '🔍 Buscando el producto en la base de datos...',
-        `Encontré este producto: **${results[0].name}**. ¿Querés seleccionarlo?`,
-      ],
-      quickReplies: ['Sí, seleccionar producto', 'No, buscar otro'],
-      nextState: 'product_claim_product_confirm',
+      messages: [`Encontré este producto: **${results[0].name}**. ¿Es el correcto?`],
+      quickReplies: ['Sí, es ese', 'No, buscar otro'],
+      nextState: 'claim_product_confirm',
       claimData: { ...data, product: results[0].name },
     };
   }
 
-  // Multiple matches — show up to 5 as quick replies
-  const top = results.slice(0, 5);
-  const options = [...top.map(p => p.name), 'Ninguno de estos'];
+  const options = [...results.slice(0, 5).map(p => p.name), 'Ninguno de estos'];
   return {
-    messages: [
-      '🔍 Buscando el producto en la base de datos...',
-      'Encontré estos productos posibles. Seleccioná el que corresponda:',
-    ],
+    messages: ['Encontré varios productos. Seleccioná el que corresponda:'],
     quickReplies: options,
-    nextState: 'product_claim_product_select',
-    claimData: { ...data, _productCandidates: top.map(p => p.name) },
+    nextState: 'claim_product_select',
+    claimData: { ...data, _productCandidates: results.slice(0, 5).map(p => p.name) },
+  };
+}
+
+function handleProductConfirm(input: string, data: ClaimData): BotResponse {
+  const isYes = input.toLowerCase().includes('sí') || input.toLowerCase().includes('si') || input.includes('continuar con ese');
+  if (isYes) {
+    if (data.editReturnState === 'claim_summary') return returnToSummary(data);
+    return askLotNumber(data);
+  }
+  return {
+    messages: ['Indicame nuevamente el nombre del producto tal como figura en el envase.'],
+    nextState: 'claim_product_name',
+    claimData: { ...data, product: null },
   };
 }
 
 function handleProductSelect(input: string, data: ClaimData): BotResponse {
   if (input === 'Ninguno de estos') {
     return {
-      messages: ['No hay problema. Indicame nuevamente el nombre del producto tal como figura en el envase.'],
-      nextState: 'product_claim_product_name',
+      messages: ['Indicame nuevamente el nombre del producto tal como figura en el envase.'],
+      nextState: 'claim_product_name',
       claimData: { ...data, product: null, _productCandidates: undefined },
     };
   }
-  // User selected one of the product names
   const updated = { ...data, product: input, _productCandidates: undefined };
-  if (data.editReturnState === 'product_claim_summary') {
-    return returnToProductSummary(updated);
-  }
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return askLotNumber(updated);
+}
+
+function askLotNumber(data: ClaimData): BotResponse {
   return {
     messages: [
-      `Perfecto, producto registrado: **${input}**. ✅`,
-      'Ahora indicame por favor el número de lote del producto. Podés encontrarlo impreso en el envase o dentro del paquete.',
+      `Producto registrado: **${data.product}**. ✅`,
+      'Ahora indicame el **número de lote**. El formato es: **1 letra seguida de 5 números** (ej: A12345). Lo encontrás impreso en el envase.',
     ],
-    nextState: 'product_claim_lot_number',
-    claimData: updated,
+    nextState: 'claim_lot_number',
+    claimData: data,
   };
 }
 
-function handleProductConfirm(input: string, data: ClaimData): BotResponse {
-  const isYes = input === 'Sí, es correcto' || input === 'Sí, seleccionar producto' || input === 'Sí, continuar'
-    || input.toLowerCase().includes('si') || input.toLowerCase().includes('sí') || input.toLowerCase() === 'correcto';
-
-  if (isYes) {
-    if (data.editReturnState === 'product_claim_summary') {
-      return returnToProductSummary(data);
-    }
-    return {
-      messages: [
-        `Perfecto, producto registrado. ✅`,
-        'Ahora indicame por favor el número de lote del producto. Podés encontrarlo impreso en el envase o dentro del paquete.',
-      ],
-      nextState: 'product_claim_lot_number',
-      claimData: data,
-    };
-  }
-  return {
-    messages: ['Perfecto, volvé a indicarme por favor el nombre del producto tal como figura en el envase.'],
-    nextState: 'product_claim_product_name',
-    claimData: { ...data, product: null },
-  };
-}
+// ─── Lote ─────────────────────────────────────────────────────────────────────
 
 function handleLotNumber(input: string, data: ClaimData): BotResponse {
   if (isMissingDataResponse(input)) {
     return {
-      messages: [
-        'No hay problema. El número de lote suele encontrarse impreso en el envase o dentro del paquete. Si querés, podés revisarlo y seguimos. Si no lo tenés disponible ahora, podemos avanzar dejando ese dato pendiente.',
-      ],
+      messages: ['No hay problema. Si lo encontrás después podemos incorporarlo. ¿Querés buscarlo o seguimos sin ese dato?'],
       quickReplies: ['Lo busco y continúo', 'Seguir sin ese dato'],
-      nextState: 'product_claim_lot_missing',
+      nextState: 'claim_lot_missing',
       claimData: data,
     };
   }
-  const trimmed = input.trim();
+  const trimmed = input.trim().toUpperCase();
   if (!isValidLot(trimmed)) {
     return {
-      messages: ['El número de lote debe ser alfanumérico y de hasta 12 caracteres (letras, números y guiones). Por favor, volvé a ingresarlo tal como figura en el envase.'],
-      nextState: 'product_claim_lot_number',
+      messages: [
+        'El formato del lote no es correcto. Debe ser **1 letra seguida de 5 números** (ej: A12345).',
+        'Por favor, ingresalo tal como figura en el envase.',
+      ],
+      nextState: 'claim_lot_number',
       claimData: data,
     };
   }
   const updated = { ...data, lot: trimmed };
-  if (data.editReturnState === 'product_claim_summary') {
-    return returnToProductSummary(updated);
-  }
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
   return {
-    messages: [
-      `Perfecto, lote **${trimmed}** registrado. ✅`,
-      'Ahora indicame la fecha de envasado. También podés encontrarla en el envase o dentro del paquete. Formato esperado: DD/MM/AAAA.',
-    ],
-    nextState: 'product_claim_packaging_date',
+    messages: [`Lote **${trimmed}** registrado. ✅`, 'Ahora indicame la **fecha de envasado** (formato DD/MM/AAAA).'],
+    nextState: 'claim_packaging_date',
     claimData: updated,
   };
 }
 
 function handleLotMissing(input: string, data: ClaimData): BotResponse {
   if (input === 'Lo busco y continúo') {
-    return {
-      messages: ['Dale, cuando lo tengas escribilo acá y continuamos. 👍'],
-      nextState: 'product_claim_lot_number',
-      claimData: data,
-    };
+    return { messages: ['Dale, cuando lo tengas escribilo acá. 👍'], nextState: 'claim_lot_number', claimData: data };
   }
   return {
-    messages: [
-      'Entendido, seguimos sin el número de lote. Podemos incorporarlo más adelante si lo encontrás.',
-      'Ahora indicame la fecha de envasado. Podés encontrarla en el envase o dentro del paquete. Formato esperado: DD/MM/AAAA.',
-    ],
-    nextState: 'product_claim_packaging_date',
+    messages: ['Entendido. Seguimos sin el lote.', 'Indicame la **fecha de envasado** (formato DD/MM/AAAA).'],
+    nextState: 'claim_packaging_date',
     claimData: { ...data, lot: '(pendiente)' },
   };
 }
 
+// ─── Fecha de envasado ────────────────────────────────────────────────────────
+
 function handlePackagingDate(input: string, data: ClaimData): BotResponse {
   if (isMissingDataResponse(input)) {
     return {
-      messages: ['No hay problema. La fecha de envasado suele estar impresa en el envase o dentro del paquete. Si no la tenés disponible ahora, puedo continuar y dejar ese dato pendiente.'],
+      messages: ['No hay problema. ¿La buscás o seguimos sin ese dato?'],
       quickReplies: ['La busco y continúo', 'Seguir sin ese dato'],
-      nextState: 'product_claim_packaging_missing',
+      nextState: 'claim_packaging_missing',
       claimData: data,
     };
   }
   if (!isValidDate(input)) {
     return {
-      messages: ['La fecha de envasado debe informarse con formato de fecha. Por ejemplo: **15/03/2026**. Por favor, escribila nuevamente de esa manera.'],
-      nextState: 'product_claim_packaging_date',
+      messages: ['La fecha debe tener formato DD/MM/AAAA. Por ejemplo: **15/03/2026**. Ingresala nuevamente.'],
+      nextState: 'claim_packaging_date',
       claimData: data,
     };
   }
   const updated = { ...data, packagingDate: input.trim() };
-  if (data.editReturnState === 'product_claim_summary') {
-    return returnToProductSummary(updated);
-  }
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
   return {
-    messages: [
-      `Perfecto, fecha de envasado registrada: **${input.trim()}**. ✅`,
-      'Ahora indicame por favor la fecha de vencimiento del producto. Formato esperado: DD/MM/AAAA.',
-    ],
-    nextState: 'product_claim_expiry_date',
+    messages: [`Fecha de envasado: **${input.trim()}**. ✅`, 'Ahora indicame la **fecha de vencimiento** (formato DD/MM/AAAA).'],
+    nextState: 'claim_expiry_date',
     claimData: updated,
   };
 }
 
 function handlePackagingMissing(input: string, data: ClaimData): BotResponse {
   if (input === 'La busco y continúo') {
-    return {
-      messages: ['Dale, cuando la tengas escribila acá y continuamos. 👍'],
-      nextState: 'product_claim_packaging_date',
-      claimData: data,
-    };
+    return { messages: ['Dale, cuando la tengas escribila acá. 👍'], nextState: 'claim_packaging_date', claimData: data };
   }
   return {
-    messages: [
-      'Entendido, seguimos sin la fecha de envasado.',
-      'Ahora indicame por favor la fecha de vencimiento del producto. Formato esperado: DD/MM/AAAA.',
-    ],
-    nextState: 'product_claim_expiry_date',
+    messages: ['Entendido. Seguimos sin la fecha de envasado.', 'Indicame la **fecha de vencimiento** (formato DD/MM/AAAA).'],
+    nextState: 'claim_expiry_date',
     claimData: { ...data, packagingDate: '(pendiente)' },
   };
 }
 
+// ─── Fecha de vencimiento ─────────────────────────────────────────────────────
+
 function handleExpiryDate(input: string, data: ClaimData): BotResponse {
   if (isMissingDataResponse(input)) {
     return {
-      messages: ['No hay problema. La fecha de vencimiento suele estar impresa en el envase. Si no la tenés ahora, podemos avanzar y dejarla pendiente.'],
+      messages: ['No hay problema. ¿La buscás o seguimos?'],
       quickReplies: ['La busco y continúo', 'Seguir sin ese dato'],
-      nextState: 'product_claim_expiry_missing',
+      nextState: 'claim_expiry_missing',
       claimData: data,
     };
   }
   if (!isValidDate(input)) {
     return {
-      messages: ['La fecha de vencimiento debe ingresarse con formato de fecha. Por ejemplo: **20/11/2026**. Por favor, ingresala nuevamente.'],
-      nextState: 'product_claim_expiry_date',
+      messages: ['La fecha debe tener formato DD/MM/AAAA. Por ejemplo: **20/11/2026**. Ingresala nuevamente.'],
+      nextState: 'claim_expiry_date',
       claimData: data,
     };
   }
   const updated = { ...data, expiryDate: input.trim() };
-  if (data.editReturnState === 'product_claim_summary') {
-    return returnToProductSummary(updated);
-  }
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
   return {
-    messages: [
-      `Perfecto, fecha de vencimiento registrada: **${input.trim()}**. ✅`,
-      'Contame brevemente cuál es el motivo del reclamo.',
-    ],
-    nextState: 'product_claim_reason',
+    messages: [`Fecha de vencimiento: **${input.trim()}**. ✅`, '¿Cuál es el motivo de tu reclamo? Seleccioná la categoría que mejor describe el problema:'],
+    quickReplies: REASON_CATEGORIES,
+    nextState: 'claim_reason_category',
     claimData: updated,
   };
 }
 
 function handleExpiryMissing(input: string, data: ClaimData): BotResponse {
   if (input === 'La busco y continúo') {
-    return {
-      messages: ['Dale, cuando la tengas escribila acá y continuamos. 👍'],
-      nextState: 'product_claim_expiry_date',
-      claimData: data,
-    };
+    return { messages: ['Dale, cuando la tengas escribila acá. 👍'], nextState: 'claim_expiry_date', claimData: data };
   }
   return {
-    messages: [
-      'Entendido, seguimos sin la fecha de vencimiento.',
-      'Contame brevemente cuál es el motivo del reclamo.',
-    ],
-    nextState: 'product_claim_reason',
+    messages: ['Entendido. ¿Cuál es el motivo de tu reclamo? Seleccioná la categoría:'],
+    quickReplies: REASON_CATEGORIES,
+    nextState: 'claim_reason_category',
     claimData: { ...data, expiryDate: '(pendiente)' },
   };
 }
 
-function handleProductReason(input: string, data: ClaimData): BotResponse {
-  const trimmed = input.trim();
-  if (trimmed.length < 3) {
+// ─── Motivo ───────────────────────────────────────────────────────────────────
+
+function handleReasonCategory(input: string, data: ClaimData): BotResponse {
+  const subs = REASON_SUBCATEGORIES[input];
+  if (!subs) {
     return {
-      messages: ['Por favor, contame un poco más sobre qué ocurrió con el producto para poder registrar correctamente el reclamo.'],
-      nextState: 'product_claim_reason',
-      claimData: data,
-    };
-  }
-  if (isShortReason(trimmed)) {
-    return {
-      messages: ['Gracias. Para poder registrar correctamente el reclamo, ¿podrías contarme un poco más sobre qué ocurrió con el producto?'],
-      nextState: 'product_claim_reason',
+      messages: ['Por favor seleccioná una de las categorías disponibles.'],
+      quickReplies: REASON_CATEGORIES,
+      nextState: 'claim_reason_category',
       claimData: data,
     };
   }
 
-  // Health urgency detection — before reason matching
-  if (detectHealthUrgency(trimmed)) {
+  // Salud: alerta urgente directa
+  if (input === 'Salud de mi mascota') {
     return {
       messages: [
-        'Quiero ayudarte lo mejor posible. Detecté que tu mensaje podría estar relacionado con la salud de tu mascota. Si querés, puedo marcar esta gestión como prioritaria para que un asesor te contacte lo antes posible.',
+        '⚠️ Detecté que tu reclamo está relacionado con la **salud de tu mascota**.',
+        'Seleccioná el problema específico:',
       ],
-      quickReplies: ['Sí, quiero asesoría urgente', 'No, continuar con el reclamo', 'Volver a escribir el motivo'],
-      nextState: 'product_claim_health_alert',
-      claimData: { ...data, reason: trimmed },
+      quickReplies: [...subs, 'Volver a categorías'],
+      nextState: 'claim_health_alert',
+      claimData: { ...data, reasonCategory: input },
     };
   }
 
-  // Use real reason repository to suggest
-  const suggestions = suggestClaimReasons(trimmed);
-
-  if (suggestions.length > 0) {
-    const best = suggestions[0];
-    const alternatives = suggestions.slice(1);
-    return {
-      messages: [
-        `En base a lo que me indicás, el motivo más cercano podría ser: **${best.name}**. ¿Querés usar este motivo?`,
-      ],
-      quickReplies: ['Sí, usar este motivo', ...(alternatives.length > 0 ? ['Ver otras opciones'] : []), 'Ninguna coincide'],
-      nextState: 'product_claim_reason_confirm',
-      claimData: {
-        ...data,
-        reason: trimmed,
-        reasonFormatted: best.name,
-        _reasonAlternatives: alternatives.map(r => ({ id: r.id, name: r.name })),
-      },
-    };
-  }
-
-  // No matches found — use generic
   return {
-    messages: [
-      `Entiendo. Voy a registrar el motivo del reclamo como: **Otros motivos**. ¿Es correcto?`,
-    ],
-    quickReplies: ['Sí, correcto', 'No, quiero corregirlo'],
-    nextState: 'product_claim_reason_confirm',
-    claimData: { ...data, reason: trimmed, reasonFormatted: 'Otros motivos', _reasonAlternatives: [] },
+    messages: ['Seleccioná el problema específico:'],
+    quickReplies: [...subs, 'Otra razón'],
+    nextState: 'claim_reason_subcategory',
+    claimData: { ...data, reasonCategory: input },
   };
+}
+
+function handleReasonSubcategory(input: string, data: ClaimData): BotResponse {
+  if (input === 'Otra razón') {
+    return {
+      messages: ['Contame brevemente qué ocurrió con el producto:'],
+      nextState: 'claim_reason_detail',
+      claimData: { ...data, reasonSubcategory: 'Otro motivo' },
+    };
+  }
+  const updated = { ...data, reasonSubcategory: input };
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return {
+    messages: [`Motivo: **${input}**. ✅`, 'Describí brevemente qué ocurrió con el producto (podés ser breve):'],
+    nextState: 'claim_reason_detail',
+    claimData: updated,
+  };
+}
+
+function handleReasonDetail(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 5) {
+    return {
+      messages: ['¿Podés contarme un poco más sobre qué ocurrió?'],
+      nextState: 'claim_reason_detail',
+      claimData: data,
+    };
+  }
+
+  // Detección de urgencia de salud en descripción libre
+  if (!data.reasonCategory?.includes('Salud') && detectHealthUrgency(trimmed)) {
+    return {
+      messages: [
+        '⚠️ Detecté que tu descripción podría estar relacionada con la **salud de tu mascota**.',
+        '¿Querés que marquemos esta gestión como prioritaria para que un asesor te contacte a la brevedad?',
+      ],
+      quickReplies: ['Sí, marcar como urgente', 'No, continuar con el reclamo normal'],
+      nextState: 'claim_health_alert',
+      claimData: { ...data, reasonDetail: trimmed },
+    };
+  }
+
+  const updated = { ...data, reasonDetail: trimmed };
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return askPurchaseModality(updated);
 }
 
 function handleHealthAlert(input: string, data: ClaimData): BotResponse {
-  if (input === 'Sí, quiero asesoría urgente') {
+  if (input === 'Volver a categorías') {
+    return {
+      messages: ['Seleccioná la categoría del problema:'],
+      quickReplies: REASON_CATEGORIES,
+      nextState: 'claim_reason_category',
+      claimData: { ...data, reasonCategory: null },
+    };
+  }
+
+  const isUrgent =
+    input === 'Sí, marcar como urgente' ||
+    Object.values(REASON_SUBCATEGORIES['Salud de mi mascota'] ?? []).includes(input);
+
+  if (isUrgent) {
+    const subcat = Object.values(REASON_SUBCATEGORIES['Salud de mi mascota'] ?? []).includes(input)
+      ? input
+      : data.reasonSubcategory;
+    const updatedData = { ...data, reasonSubcategory: subcat };
+
+    // Si tiene datos personales previos no pedimos de nuevo — saltamos a resumen de urgente
     const num = generateClaimNumber();
     return {
-      messages: [
-        `Perfecto. Voy a registrar esta gestión con prioridad para asesoría veterinaria con el número **${num}**. Un asesor se va a comunicar con vos a la brevedad. 🩺`,
-        '_En esta versión demo la carga se simula localmente, pero en una implementación real el ticket quedaría registrado con prioridad en el sistema._',
-      ],
+      messages: buildClaimClosure(num, 'Urgente'),
       quickReplies: ['Volver al menú principal', 'Finalizar'],
       nextState: 'completed_step',
-      claimData: data,
-      ticketInfo: { ticketNumber: num, claimType: 'asesoría veterinaria urgente', priority: 'Urgente' },
-    };
-  }
-  if (input === 'Volver a escribir el motivo') {
-    return {
-      messages: ['Perfecto, contame nuevamente el motivo de tu reclamo con tus palabras.'],
-      nextState: 'product_claim_reason',
-      claimData: { ...data, reason: null, reasonFormatted: null },
-    };
-  }
-  // "No, continuar con el reclamo" or any other input — proceed with normal reason flow
-  const reason = data.reason ?? '';
-  const suggestions = suggestClaimReasons(reason);
-
-  if (suggestions.length > 0) {
-    const best = suggestions[0];
-    const alternatives = suggestions.slice(1);
-    return {
-      messages: [
-        `Entendido, continuamos con el reclamo. En base a lo que me indicás, el motivo más cercano podría ser: **${best.name}**. ¿Querés usar este motivo?`,
-      ],
-      quickReplies: ['Sí, usar este motivo', ...(alternatives.length > 0 ? ['Ver otras opciones'] : []), 'Ninguna coincide'],
-      nextState: 'product_claim_reason_confirm',
-      claimData: {
-        ...data,
-        reasonFormatted: best.name,
-        _reasonAlternatives: alternatives.map(r => ({ id: r.id, name: r.name })),
-      },
+      claimData: updatedData,
+      ticketInfo: { ticketNumber: num, claimType: 'reclamo salud mascota', priority: 'Urgente' },
     };
   }
 
-  return {
-    messages: ['Entendido, continuamos con el reclamo. Voy a registrar el motivo como: **Otros motivos**. ¿Es correcto?'],
-    quickReplies: ['Sí, correcto', 'No, quiero corregirlo'],
-    nextState: 'product_claim_reason_confirm',
-    claimData: { ...data, reasonFormatted: 'Otros motivos', _reasonAlternatives: [] },
-  };
+  // No urgente — continuar flujo normal
+  return askPurchaseModality(data);
 }
 
-function handleProductReasonConfirm(input: string, data: ClaimData): BotResponse {
-  if (input === 'Sí, usar este motivo' || input === 'Sí, correcto'
-    || input.toLowerCase().includes('si') || input.toLowerCase().includes('sí') || input.toLowerCase() === 'correcto') {
-    const cleaned = { ...data, _reasonAlternatives: undefined };
-    if (data.editReturnState === 'product_claim_summary') {
-      return returnToProductSummary(cleaned);
-    }
-    return {
-      messages: ['Perfecto, motivo registrado. ✅', 'Por último, indicame dónde realizaste la compra del producto.'],
-      nextState: 'product_claim_purchase_location',
-      claimData: cleaned,
-    };
-  }
-  if (input === 'Ver otras opciones') {
-    return handleProductReasonShowAlternatives(data);
-  }
-  if (input === 'Ninguna coincide') {
-    const cleaned = { ...data, reasonFormatted: 'Otros motivos', _reasonAlternatives: undefined, editReturnState: undefined };
-    if (data.editReturnState === 'product_claim_summary') {
-      return returnToProductSummary(cleaned);
-    }
-    return {
-      messages: [
-        'Perfecto. Para esta demo voy a registrar un motivo general y el equipo podrá ampliarlo luego.',
-        'Por último, indicame dónde realizaste la compra del producto.',
-      ],
-      nextState: 'product_claim_purchase_location',
-      claimData: cleaned,
-    };
-  }
-  // "No, quiero corregirlo"
-  return {
-    messages: ['Perfecto, contame nuevamente el motivo de tu reclamo con tus palabras.'],
-    nextState: 'product_claim_reason',
-    claimData: { ...data, reason: null, reasonFormatted: null, _reasonAlternatives: undefined },
-  };
-}
+// ─── Modalidad de compra ──────────────────────────────────────────────────────
 
-function handleProductReasonShowAlternatives(data: ClaimData): BotResponse {
-  const alts = data._reasonAlternatives ?? [];
-  if (alts.length === 0) {
-    return {
-      messages: ['No tengo otras opciones para sugerir. Contame nuevamente el motivo con tus palabras.'],
-      nextState: 'product_claim_reason',
-      claimData: { ...data, reason: null, reasonFormatted: null, _reasonAlternatives: undefined },
-    };
-  }
-  const options = [...alts.map(a => a.name), 'Ninguna coincide'];
+function askPurchaseModality(data: ClaimData): BotResponse {
   return {
-    messages: ['Estas son otras opciones que podrían corresponder:'],
-    quickReplies: options,
-    nextState: 'product_claim_reason_suggest',
+    messages: ['¿Cómo realizaste la compra del producto?'],
+    quickReplies: ['Presencial (local físico)', 'Virtual (online)'],
+    nextState: 'claim_purchase_modality',
     claimData: data,
   };
 }
 
-function handleProductReasonSuggest(input: string, data: ClaimData): BotResponse {
-  if (input === 'Ninguna coincide') {
-    const cleaned = { ...data, reasonFormatted: 'Otros motivos', _reasonAlternatives: undefined };
-    if (data.editReturnState === 'product_claim_summary') {
-      return returnToProductSummary(cleaned);
-    }
+function handlePurchaseModality(input: string, data: ClaimData): BotResponse {
+  const isVirtual = input.toLowerCase().includes('virtual') || input.toLowerCase().includes('online');
+  const modality = isVirtual ? 'virtual' : 'presencial';
+  const updated = { ...data, purchaseModality: modality as 'virtual' | 'presencial' };
+
+  if (isVirtual) {
     return {
-      messages: [
-        'Perfecto. Para esta demo voy a registrar un motivo general y el equipo podrá ampliarlo luego.',
-        'Por último, indicame dónde realizaste la compra del producto.',
-      ],
-      nextState: 'product_claim_purchase_location',
-      claimData: cleaned,
+      messages: ['¿En qué plataforma o sitio realizaste la compra?'],
+      quickReplies: ['Mercado Libre', 'Tienda oficial Vitalcán', 'Otro sitio web'],
+      nextState: 'claim_purchase_store',
+      claimData: updated,
     };
   }
-  // User selected one of the alternative reasons
-  const cleaned = { ...data, reasonFormatted: input, _reasonAlternatives: undefined };
-  if (data.editReturnState === 'product_claim_summary') {
-    return returnToProductSummary(cleaned);
+
+  return {
+    messages: ['¿En qué local o comercio lo compraste? (nombre del negocio o cadena)'],
+    nextState: 'claim_purchase_store',
+    claimData: updated,
+  };
+}
+
+function handlePurchaseStore(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 2) {
+    return {
+      messages: ['¿Podés indicarme el nombre del comercio o plataforma?'],
+      nextState: 'claim_purchase_store',
+      claimData: data,
+    };
   }
+  const updated = { ...data, purchaseStore: trimmed };
+
+  // Si compró en Mercado Libre, pedir nombre del vendedor
+  if (trimmed.toLowerCase().includes('mercado libre') || trimmed.toLowerCase().includes('meli')) {
+    return {
+      messages: ['¿Cuál es el nombre del vendedor en Mercado Libre?', '(Lo encontrás en el detalle de tu compra)'],
+      nextState: 'claim_purchase_ml_seller',
+      claimData: updated,
+    };
+  }
+
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return askImagesInfo(updated);
+}
+
+function handleMlSeller(input: string, data: ClaimData): BotResponse {
+  const updated = { ...data, mlSeller: input.trim() || '(no indicado)' };
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return askImagesInfo(updated);
+}
+
+// ─── Imágenes ─────────────────────────────────────────────────────────────────
+
+function askImagesInfo(data: ClaimData): BotResponse {
   return {
     messages: [
-      `Perfecto, motivo registrado: **${input}**. ✅`,
-      'Por último, indicame dónde realizaste la compra del producto.',
+      '📸 Para procesar tu reclamo necesitamos que nos envíes las siguientes fotos:',
+      '1️⃣ **Frente de la bolsa** (donde se ve el producto y la marca)\n2️⃣ **Rótulo** (donde figuran el lote, fecha de envasado y vencimiento)\n3️⃣ **Contenido del producto** (foto del interior de la bolsa)',
+      '_En esta demo no es necesario adjuntarlas, pero en la implementación real deberás subirlas en este paso._',
+      'Cuando estés listo, escribí **"listo"** o hacé clic en continuar para seguir con tus datos personales.',
     ],
-    nextState: 'product_claim_purchase_location',
+    quickReplies: ['Continuar'],
+    nextState: 'claim_images_info',
+    claimData: data,
+  };
+}
+
+function handleImagesInfo(input: string, data: ClaimData): BotResponse {
+  return {
+    messages: ['Perfecto. ✅ Ahora necesito tus datos para poder contactarte y gestionar la reposición del producto.', '¿Cuál es tu nombre y apellido?'],
+    nextState: 'claim_personal_name',
+    claimData: data,
+  };
+}
+
+// ─── Datos personales ─────────────────────────────────────────────────────────
+
+function handlePersonalName(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 3) {
+    return { messages: ['¿Podés indicarme tu nombre completo?'], nextState: 'claim_personal_name', claimData: data };
+  }
+  const updated = { ...data, personalName: trimmed };
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return { messages: [`Gracias, **${trimmed}**. ¿Cuál es tu dirección de email?`], nextState: 'claim_personal_email', claimData: updated };
+}
+
+function handlePersonalEmail(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  if (!emailOk) {
+    return { messages: ['El email no parece válido. Por favor ingresalo nuevamente (ej: nombre@correo.com).'], nextState: 'claim_personal_email', claimData: data };
+  }
+  const updated = { ...data, personalEmail: trimmed };
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return { messages: ['¿Cuál es tu número de teléfono (con código de área)?'], nextState: 'claim_personal_phone', claimData: updated };
+}
+
+function handlePersonalPhone(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 7) {
+    return { messages: ['El teléfono parece incompleto. Ingresalo con código de área (ej: 11 4567-8901).'], nextState: 'claim_personal_phone', claimData: data };
+  }
+  const updated = { ...data, personalPhone: trimmed };
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return { messages: ['¿Cuál es tu dirección particular (calle y número)?'], nextState: 'claim_personal_address', claimData: updated };
+}
+
+function handlePersonalAddress(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 5) {
+    return { messages: ['¿Podés indicarme tu dirección completa (calle y número)?'], nextState: 'claim_personal_address', claimData: data };
+  }
+  const updated = { ...data, personalAddress: trimmed };
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return { messages: ['¿Cuál es tu código postal?'], nextState: 'claim_personal_postal', claimData: updated };
+}
+
+function handlePersonalPostal(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 3) {
+    return { messages: ['¿Podés indicarme tu código postal?'], nextState: 'claim_personal_postal', claimData: data };
+  }
+  const updated = { ...data, personalPostal: trimmed };
+  if (data.editReturnState === 'claim_summary') return returnToSummary(updated);
+  return { messages: ['Por último, ¿cuál es tu horario preferido para que nos contactemos con vos? (ej: mañanas, tardes, de 9 a 17hs)'], nextState: 'claim_personal_reception', claimData: updated };
+}
+
+function handlePersonalReception(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 2) {
+    return { messages: ['¿Podés indicarme tu horario preferido de contacto?'], nextState: 'claim_personal_reception', claimData: data };
+  }
+  const updated = { ...data, personalReception: trimmed };
+  return {
+    messages: [
+      'Perfecto. Este es el resumen de tu reclamo:',
+      formatClaimSummary(updated),
+      '¿Querés confirmar o editar algún dato?',
+    ],
+    quickReplies: ['Confirmar reclamo', 'Editar datos'],
+    nextState: 'claim_summary',
+    claimData: updated,
+  };
+}
+
+// ─── Resumen y confirmación ───────────────────────────────────────────────────
+
+function returnToSummary(data: ClaimData): BotResponse {
+  const cleaned = { ...data, editReturnState: undefined };
+  return {
+    messages: ['Dato actualizado. ✅ Resumen actualizado:', formatClaimSummary(cleaned), '¿Confirmás o editás algo más?'],
+    quickReplies: ['Confirmar reclamo', 'Editar datos'],
+    nextState: 'claim_summary',
     claimData: cleaned,
   };
 }
 
-function handlePurchaseLocation(input: string, data: ClaimData): BotResponse {
-  const trimmed = input.trim();
-  if (trimmed.length < 2) {
-    return {
-      messages: ['¿Podrías indicarme el nombre del comercio o el canal de compra?'],
-      nextState: 'product_claim_purchase_location',
-      claimData: data,
-    };
-  }
-  const updated = { ...data, purchaseLocation: trimmed };
-  return {
-    messages: [
-      `Perfecto. Este es el resumen de la información registrada para tu reclamo:`,
-      formatProductSummary(updated),
-      '¿Querés confirmar esta información?',
-    ],
-    quickReplies: ['Confirmar reclamo', 'Editar datos'],
-    nextState: 'product_claim_summary',
-    claimData: updated,
-  };
-}
-
-function formatProductSummary(d: ClaimData): string {
-  return [
-    `📋 **Resumen del reclamo**`,
-    clientLine(d),
-    `• **Producto:** ${d.product ?? '(pendiente)'}`,
-    `• **Lote:** ${d.lot ?? '(pendiente)'}`,
-    `• **Fecha de envasado:** ${d.packagingDate ?? '(pendiente)'}`,
-    `• **Fecha de vencimiento:** ${d.expiryDate ?? '(pendiente)'}`,
-    `• **Motivo:** ${d.reasonFormatted ?? d.reason ?? '(pendiente)'}`,
-    `• **Lugar de compra:** ${d.purchaseLocation ?? '(pendiente)'}`,
-  ].join('\n');
-}
-
-function handleProductSummary(input: string, data: ClaimData): BotResponse {
+function handleClaimSummary(input: string, data: ClaimData): BotResponse {
   if (input === 'Confirmar reclamo' || input.toLowerCase().includes('confirmar')) {
     const num = generateClaimNumber();
     return {
-      messages: buildClaimClosure('reclamo sobre productos', num),
+      messages: buildClaimClosure(num, 'Normal'),
       quickReplies: ['Volver al menú principal', 'Finalizar'],
       nextState: 'completed_step',
       claimData: data,
-      ticketInfo: { ticketNumber: num, claimType: 'reclamo sobre productos', priority: 'Normal' },
+      ticketInfo: { ticketNumber: num, claimType: 'reclamo de producto', priority: 'Normal' },
     };
   }
   if (input === 'Editar datos' || input.toLowerCase().includes('editar')) {
     return {
       messages: ['¿Qué dato querés corregir?'],
-      quickReplies: ['Producto', 'Lote', 'Fecha de envasado', 'Fecha de vencimiento', 'Motivo', 'Lugar de compra'],
-      nextState: 'product_claim_edit_select',
-      claimData: data,
-    };
-  }
-  return {
-    messages: ['Por favor seleccioná una opción.'],
-    quickReplies: ['Confirmar reclamo', 'Editar datos'],
-    nextState: 'product_claim_summary',
-    claimData: data,
-  };
-}
-
-function handleProductEditSelect(input: string, data: ClaimData): BotResponse {
-  const map: Record<string, { msg: string; state: ConversationState; clear: Partial<ClaimData> }> = {
-    'Producto': { msg: 'Indicame el nombre correcto del producto.', state: 'product_claim_product_name', clear: { product: null } },
-    'Lote': { msg: 'Indicame el número de lote correcto.', state: 'product_claim_lot_number', clear: { lot: null } },
-    'Fecha de envasado': { msg: 'Indicame la fecha de envasado correcta. Formato: DD/MM/AAAA.', state: 'product_claim_packaging_date', clear: { packagingDate: null } },
-    'Fecha de vencimiento': { msg: 'Indicame la fecha de vencimiento correcta. Formato: DD/MM/AAAA.', state: 'product_claim_expiry_date', clear: { expiryDate: null } },
-    'Motivo': { msg: 'Contame nuevamente el motivo de tu reclamo.', state: 'product_claim_reason', clear: { reason: null, reasonFormatted: null } },
-    'Lugar de compra': { msg: 'Indicame el lugar de compra correcto.', state: 'product_claim_purchase_location', clear: { purchaseLocation: null } },
-  };
-  const entry = map[input];
-  if (entry) {
-    return {
-      messages: [entry.msg],
-      nextState: entry.state,
-      claimData: { ...data, ...entry.clear, editReturnState: 'product_claim_summary' },
-    };
-  }
-  return {
-    messages: ['Por favor seleccioná uno de los campos a editar.'],
-    quickReplies: ['Producto', 'Lote', 'Fecha de envasado', 'Fecha de vencimiento', 'Motivo', 'Lugar de compra'],
-    nextState: 'product_claim_edit_select',
-    claimData: data,
-  };
-}
-
-// ─── Billing claim handlers ──────────────────────────────────────────────────
-
-function handleBillingInvoiceDate(input: string, data: ClaimData): BotResponse {
-  if (!isValidDate(input)) {
-    return {
-      messages: ['La fecha de emisión debe informarse con formato de fecha. Por ejemplo: **05/02/2026**. Por favor, escribila nuevamente.'],
-      nextState: 'billing_claim_invoice_date',
-      claimData: data,
-    };
-  }
-  const updated = { ...data, invoiceDate: input.trim() };
-  if (data.editReturnState === 'billing_claim_summary') {
-    return returnToBillingSummary(updated);
-  }
-  return {
-    messages: ['Perfecto, fecha registrada. ✅', 'Ahora decime el número de factura, tal como figura en el comprobante.'],
-    nextState: 'billing_claim_invoice_number',
-    claimData: updated,
-  };
-}
-
-function handleBillingInvoiceNumber(input: string, data: ClaimData): BotResponse {
-  if (input.trim().length < 3) {
-    return {
-      messages: ['El número de factura parece incompleto. Por favor, ingresalo tal como figura en el comprobante.'],
-      nextState: 'billing_claim_invoice_number',
-      claimData: data,
-    };
-  }
-  const updated = { ...data, invoiceNumber: input.trim() };
-  if (data.editReturnState === 'billing_claim_summary') {
-    return returnToBillingSummary(updated);
-  }
-  return {
-    messages: ['Gracias. Ahora contame brevemente el motivo de tu reclamo sobre facturación.'],
-    nextState: 'billing_claim_reason',
-    claimData: updated,
-  };
-}
-
-function handleBillingReason(input: string, data: ClaimData): BotResponse {
-  if (input.trim().length < 5) {
-    return {
-      messages: ['¿Podrías contarme un poco más sobre el inconveniente con la facturación?'],
-      nextState: 'billing_claim_reason',
-      claimData: data,
-    };
-  }
-  const updated = { ...data, reason: input.trim() };
-  if (data.editReturnState === 'billing_claim_summary') {
-    return returnToBillingSummary(updated);
-  }
-  return {
-    messages: [
-      'Perfecto. Este es el resumen de tu reclamo de facturación:',
-      formatBillingSummary(updated),
-      '¿Querés confirmar esta información?',
-    ],
-    quickReplies: ['Confirmar reclamo', 'Editar datos'],
-    nextState: 'billing_claim_summary',
-    claimData: updated,
-  };
-}
-
-function formatBillingSummary(d: ClaimData): string {
-  return [
-    `📋 **Resumen del reclamo de facturación**`,
-    clientLine(d),
-    `• **Fecha de factura:** ${d.invoiceDate ?? '(pendiente)'}`,
-    `• **Número de factura:** ${d.invoiceNumber ?? '(pendiente)'}`,
-    `• **Motivo:** ${d.reason ?? '(pendiente)'}`,
-  ].join('\n');
-}
-
-function handleBillingSummary(input: string, data: ClaimData): BotResponse {
-  if (input === 'Confirmar reclamo' || input.toLowerCase().includes('confirmar')) {
-    const num = generateClaimNumber();
-    return {
-      messages: buildClaimClosure('reclamo sobre facturación', num),
-      quickReplies: ['Volver al menú principal', 'Finalizar'],
-      nextState: 'completed_step',
-      claimData: data,
-      ticketInfo: { ticketNumber: num, claimType: 'reclamo sobre facturación', priority: 'Normal' },
-    };
-  }
-  if (input === 'Editar datos' || input.toLowerCase().includes('editar')) {
-    return {
-      messages: ['¿Qué dato querés corregir?'],
-      quickReplies: ['Fecha de factura', 'Número de factura', 'Motivo'],
-      nextState: 'billing_claim_edit_select',
-      claimData: data,
-    };
-  }
-  return {
-    messages: ['Por favor seleccioná una opción.'],
-    quickReplies: ['Confirmar reclamo', 'Editar datos'],
-    nextState: 'billing_claim_summary',
-    claimData: data,
-  };
-}
-
-function handleBillingEditSelect(input: string, data: ClaimData): BotResponse {
-  const map: Record<string, { msg: string; state: ConversationState; clear: Partial<ClaimData> }> = {
-    'Fecha de factura': { msg: 'Indicame la fecha de emisión correcta. Formato: DD/MM/AAAA.', state: 'billing_claim_invoice_date', clear: { invoiceDate: null } },
-    'Número de factura': { msg: 'Indicame el número de factura correcto.', state: 'billing_claim_invoice_number', clear: { invoiceNumber: null } },
-    'Motivo': { msg: 'Contame nuevamente el motivo de tu reclamo.', state: 'billing_claim_reason', clear: { reason: null } },
-  };
-  const entry = map[input];
-  if (entry) {
-    return {
-      messages: [entry.msg],
-      nextState: entry.state,
-      claimData: { ...data, ...entry.clear, editReturnState: 'billing_claim_summary' },
-    };
-  }
-  return {
-    messages: ['Por favor seleccioná uno de los campos a editar.'],
-    quickReplies: ['Fecha de factura', 'Número de factura', 'Motivo'],
-    nextState: 'billing_claim_edit_select',
-    claimData: data,
-  };
-}
-
-// ─── Delivery claim handlers ─────────────────────────────────────────────────
-
-function handleDeliveryWaybill(input: string, data: ClaimData): BotResponse {
-  if (input.trim().length < 3) {
-    return {
-      messages: ['El número de remito parece incompleto. Por favor, ingresalo tal como figura en el comprobante.'],
-      nextState: 'delivery_claim_waybill_number',
-      claimData: data,
-    };
-  }
-  const updated = { ...data, waybillNumber: input.trim() };
-  if (data.editReturnState === 'delivery_claim_summary') {
-    return returnToDeliverySummary(updated);
-  }
-  return {
-    messages: ['Perfecto, remito registrado. ✅', 'Ahora indicame la fecha de entrega (o la fecha estimada de entrega). Formato: DD/MM/AAAA.'],
-    nextState: 'delivery_claim_delivery_date',
-    claimData: updated,
-  };
-}
-
-function handleDeliveryDate(input: string, data: ClaimData): BotResponse {
-  if (isMissingDataResponse(input)) {
-    return {
-      messages: [
-        'No hay problema, seguimos sin la fecha de entrega.',
-        'Ahora contame brevemente el motivo de tu reclamo sobre la entrega.',
+      quickReplies: [
+        'Producto', 'Lote', 'Fecha de envasado', 'Fecha de vencimiento',
+        'Motivo', 'Modalidad de compra', 'Local de compra',
+        'Nombre', 'Email', 'Teléfono', 'Dirección', 'Código postal', 'Horario',
       ],
-      nextState: 'delivery_claim_reason',
-      claimData: { ...data, deliveryDate: '(pendiente)' },
-    };
-  }
-  if (!isValidDate(input)) {
-    return {
-      messages: ['La fecha debe informarse con formato DD/MM/AAAA. Por ejemplo: **10/03/2026**. Por favor, ingresala nuevamente.'],
-      nextState: 'delivery_claim_delivery_date',
-      claimData: data,
-    };
-  }
-  const updated = { ...data, deliveryDate: input.trim() };
-  if (data.editReturnState === 'delivery_claim_summary') {
-    return returnToDeliverySummary(updated);
-  }
-  return {
-    messages: ['Perfecto, fecha registrada. ✅', 'Ahora contame brevemente el motivo de tu reclamo sobre la entrega.'],
-    nextState: 'delivery_claim_reason',
-    claimData: updated,
-  };
-}
-
-function handleDeliveryReason(input: string, data: ClaimData): BotResponse {
-  if (input.trim().length < 5) {
-    return {
-      messages: ['¿Podrías contarme un poco más sobre el inconveniente con la entrega?'],
-      nextState: 'delivery_claim_reason',
-      claimData: data,
-    };
-  }
-  const updated = { ...data, reason: input.trim() };
-  if (data.editReturnState === 'delivery_claim_summary') {
-    return returnToDeliverySummary(updated);
-  }
-  return {
-    messages: [
-      'Perfecto. Este es el resumen de tu reclamo de entrega:',
-      formatDeliverySummary(updated),
-      '¿Querés confirmar esta información?',
-    ],
-    quickReplies: ['Confirmar reclamo', 'Editar datos'],
-    nextState: 'delivery_claim_summary',
-    claimData: updated,
-  };
-}
-
-function formatDeliverySummary(d: ClaimData): string {
-  return [
-    `📋 **Resumen del reclamo de entrega**`,
-    clientLine(d),
-    `• **Número de remito:** ${d.waybillNumber ?? '(pendiente)'}`,
-    `• **Fecha de entrega:** ${d.deliveryDate ?? '(pendiente)'}`,
-    `• **Motivo:** ${d.reason ?? '(pendiente)'}`,
-  ].join('\n');
-}
-
-function handleDeliverySummary(input: string, data: ClaimData): BotResponse {
-  if (input === 'Confirmar reclamo' || input.toLowerCase().includes('confirmar')) {
-    const num = generateClaimNumber();
-    return {
-      messages: buildClaimClosure('reclamo sobre entrega', num),
-      quickReplies: ['Volver al menú principal', 'Finalizar'],
-      nextState: 'completed_step',
-      claimData: data,
-      ticketInfo: { ticketNumber: num, claimType: 'reclamo sobre entrega', priority: 'Normal' },
-    };
-  }
-  if (input === 'Editar datos' || input.toLowerCase().includes('editar')) {
-    return {
-      messages: ['¿Qué dato querés corregir?'],
-      quickReplies: ['Número de remito', 'Fecha de entrega', 'Motivo'],
-      nextState: 'delivery_claim_edit_select',
+      nextState: 'claim_edit_select',
       claimData: data,
     };
   }
   return {
     messages: ['Por favor seleccioná una opción.'],
     quickReplies: ['Confirmar reclamo', 'Editar datos'],
-    nextState: 'delivery_claim_summary',
+    nextState: 'claim_summary',
     claimData: data,
   };
 }
 
-function handleDeliveryEditSelect(input: string, data: ClaimData): BotResponse {
+function handleClaimEditSelect(input: string, data: ClaimData): BotResponse {
   const map: Record<string, { msg: string; state: ConversationState; clear: Partial<ClaimData> }> = {
-    'Número de remito': { msg: 'Indicame el número de remito correcto.', state: 'delivery_claim_waybill_number', clear: { waybillNumber: null } },
-    'Fecha de entrega': { msg: 'Indicame la fecha de entrega correcta. Formato: DD/MM/AAAA.', state: 'delivery_claim_delivery_date', clear: { deliveryDate: null } },
-    'Motivo': { msg: 'Contame nuevamente el motivo de tu reclamo.', state: 'delivery_claim_reason', clear: { reason: null } },
+    'Producto': { msg: 'Indicame el nombre correcto del producto.', state: 'claim_product_name', clear: { product: null } },
+    'Lote': { msg: 'Indicame el número de lote correcto (formato: 1 letra + 5 números, ej: A12345).', state: 'claim_lot_number', clear: { lot: null } },
+    'Fecha de envasado': { msg: 'Indicame la fecha de envasado correcta (DD/MM/AAAA).', state: 'claim_packaging_date', clear: { packagingDate: null } },
+    'Fecha de vencimiento': { msg: 'Indicame la fecha de vencimiento correcta (DD/MM/AAAA).', state: 'claim_expiry_date', clear: { expiryDate: null } },
+    'Motivo': { msg: 'Seleccioná la categoría del motivo:', state: 'claim_reason_category', clear: { reasonCategory: null, reasonSubcategory: null, reasonDetail: null } },
+    'Modalidad de compra': { msg: '¿Cómo realizaste la compra?', state: 'claim_purchase_modality', clear: { purchaseModality: null, purchaseStore: null, mlSeller: null } },
+    'Local de compra': { msg: '¿En qué local o plataforma compraste el producto?', state: 'claim_purchase_store', clear: { purchaseStore: null, mlSeller: null } },
+    'Nombre': { msg: '¿Cuál es tu nombre y apellido?', state: 'claim_personal_name', clear: { personalName: null } },
+    'Email': { msg: '¿Cuál es tu email?', state: 'claim_personal_email', clear: { personalEmail: null } },
+    'Teléfono': { msg: '¿Cuál es tu teléfono?', state: 'claim_personal_phone', clear: { personalPhone: null } },
+    'Dirección': { msg: '¿Cuál es tu dirección?', state: 'claim_personal_address', clear: { personalAddress: null } },
+    'Código postal': { msg: '¿Cuál es tu código postal?', state: 'claim_personal_postal', clear: { personalPostal: null } },
+    'Horario': { msg: '¿Cuál es tu horario preferido de contacto?', state: 'claim_personal_reception', clear: { personalReception: null } },
   };
+
   const entry = map[input];
   if (entry) {
+    const msgs: string[] = [entry.msg];
+    // Si el campo es motivo, agregar quick replies de categorías
+    const qr = input === 'Motivo' ? REASON_CATEGORIES : input === 'Modalidad de compra' ? ['Presencial (local físico)', 'Virtual (online)'] : undefined;
     return {
-      messages: [entry.msg],
+      messages: msgs,
+      quickReplies: qr,
       nextState: entry.state,
-      claimData: { ...data, ...entry.clear, editReturnState: 'delivery_claim_summary' },
+      claimData: { ...data, ...entry.clear, editReturnState: 'claim_summary' },
     };
   }
+
   return {
     messages: ['Por favor seleccioná uno de los campos a editar.'],
-    quickReplies: ['Número de remito', 'Fecha de entrega', 'Motivo'],
-    nextState: 'delivery_claim_edit_select',
+    quickReplies: ['Producto', 'Lote', 'Fecha de envasado', 'Fecha de vencimiento', 'Motivo', 'Modalidad de compra', 'Local de compra', 'Nombre', 'Email', 'Teléfono', 'Dirección', 'Código postal', 'Horario'],
+    nextState: 'claim_edit_select',
     claimData: data,
   };
 }
@@ -1387,20 +1105,13 @@ function handleDeliveryEditSelect(input: string, data: ClaimData): BotResponse {
 function handleCompletedStep(input: string): BotResponse {
   if (input === 'Volver al menú principal') {
     return {
-      messages: ['¡Por supuesto! Decime en qué más puedo ayudarte.'],
+      messages: ['¡Por supuesto! ¿En qué más puedo ayudarte?'],
       quickReplies: MAIN_MENU_OPTIONS,
       nextState: 'main_menu',
     };
   }
-  if (input === 'Finalizar') {
-    return {
-      messages: ['¡Gracias por usar Thanos! Si necesitás algo más, no dudes en escribirme. Que tengas un excelente día. 😊'],
-      nextState: 'completed_step',
-    };
-  }
   return {
-    messages: ['¿En qué más puedo ayudarte?'],
-    quickReplies: ['Volver al menú principal', 'Finalizar'],
+    messages: ['¡Gracias por usar Biti! Si necesitás algo más, no dudes en escribirme. 🐾'],
     nextState: 'completed_step',
   };
 }
@@ -1409,77 +1120,100 @@ function handleCompletedStep(input: string): BotResponse {
 
 export const DEMO_SCENARIOS = [
   {
-    label: 'Reclamo de producto',
+    label: 'Reclamo consumidor final',
     steps: [
       'Hola',
-      'Realizar un reclamo',
-      '30713322705',
-      'Sí, es correcto',
-      'Reclamo sobre productos',
+      'Hacer un reclamo',
+      'No, compro en supermercado u otro comercio',
       'Balanced perro adulto',
-      'Sí, seleccionar producto',
-      'L-2024-0892',
-      '15/01/2025',
-      '15/07/2025',
-      'El producto vino con bichos adentro de la bolsa y olor rancio',
-      'Sí, usar este motivo',
-      'Puppis Palermo',
+      'Sí, es ese',
+      'A12345',
+      '10/01/2026',
+      '10/07/2026',
+      'Contenido / calidad del producto',
+      'Presencia de bichos',
+      'Encontré bichos dentro de la bolsa al abrirla',
+      'Presencial (local físico)',
+      'Jumbo Palermo',
+      'Continuar',
+      'Juan Pérez',
+      'juan@email.com',
+      '11 4567-8901',
+      'Av. Corrientes 1234',
+      '1043',
+      'Mañanas de 9 a 13hs',
       'Confirmar reclamo',
     ],
   },
   {
-    label: 'Reclamo de facturación',
+    label: 'Reclamo punto de venta',
     steps: [
       'Hola',
-      'Realizar un reclamo',
-      '20130631720',
-      'Sí, es correcto',
-      'Reclamo sobre facturación',
-      '03/02/2025',
-      'FAC-A-0001-00045892',
-      'Me facturaron un monto diferente al pactado con el vendedor.',
+      'Hacer un reclamo',
+      'No, compro en una veterinaria o pet shop',
+      'Soy el punto de venta y quiero hacer el reclamo yo',
+      'Distribuidora Norte SRL',
+      'Royal Canin gato adulto',
+      'Sí, es ese',
+      'B98765',
+      '05/02/2026',
+      '05/08/2026',
+      'Problemas de envase',
+      'Bolsa rota o mal sellada',
+      'Varias bolsas llegaron rotas en el pallet',
+      'Presencial (local físico)',
+      'Distribuidora Norte',
+      'Continuar',
+      'María López',
+      'maria@petshop.com',
+      '11 5678-9012',
+      'Av. San Martín 456',
+      '1416',
+      'Tardes de 14 a 18hs',
       'Confirmar reclamo',
     ],
   },
   {
-    label: 'Reclamo de entrega',
+    label: 'Reclamo compra Mercado Libre',
     steps: [
       'Hola',
-      'Realizar un reclamo',
-      '27176522769',
-      'Sí, es correcto',
-      'Reclamo sobre entregas',
-      'R-0001-00078234',
-      '08/03/2026',
-      'El pedido llegó incompleto, faltan 2 bultos de los 5 enviados.',
+      'Hacer un reclamo',
+      'No, compro en supermercado u otro comercio',
+      'Vitalcan gato adulto 15kg',
+      'Sí, continuar con ese producto',
+      'C54321',
+      '20/03/2026',
+      '20/09/2026',
+      'Contenido / calidad del producto',
+      'Mal olor',
+      'El producto tiene un olor raro, diferente a lo normal',
+      'Virtual (online)',
+      'Mercado Libre',
+      'tienda_oficial_vitalcan',
+      'Continuar',
+      'Carlos García',
+      'carlos@gmail.com',
+      '11 6789-0123',
+      'Gurruchaga 789',
+      '1414',
+      'Cualquier horario',
       'Confirmar reclamo',
     ],
   },
   {
-    label: 'Consulta de precios',
+    label: 'Distribuidor redirigido',
     steps: [
       'Hola',
-      'Consultar lista de precios',
-      '30713322705',
-      'Sí, es correcto',
+      'Hacer un reclamo',
+      'Sí, soy cliente directo / distribuidor',
     ],
   },
   {
-    label: 'Cuenta corriente',
+    label: 'Consulta',
     steps: [
       'Hola',
-      'Consultar cuenta corriente',
-      '20132952125',
-      'Sí, es correcto',
-    ],
-  },
-  {
-    label: 'Pedido de venta',
-    steps: [
-      'Hola',
-      'Realizar un pedido de venta',
-      '30713322705',
-      'Sí, es correcto',
+      'Tengo una consulta',
+      'Quisiera saber qué productos tienen disponibles para gatos senior',
     ],
   },
 ];
