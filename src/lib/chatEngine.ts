@@ -298,7 +298,8 @@ export function processUserInput(state: ConversationState, input: string, claimD
 
     // ── Reclamo: producto ─────────────────────────────────────────────────
     case 'claim_user_confirmed':
-      return handleClaimUserConfirmed(input, data);
+      // Estado legacy: re-encaminamos al inicio del flujo de reclamo.
+      return startClaimFlow(data);
 
     case 'claim_product_name':
       return handleProductName(input, data);
