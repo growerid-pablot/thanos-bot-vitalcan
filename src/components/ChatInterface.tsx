@@ -160,7 +160,7 @@ const ChatInterface = () => {
       >
         {messages.length === 0 && !isTyping && (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground opacity-60 gap-2 py-20">
-            <p className="text-sm">Escribí un mensaje para comenzar la conversación con Thanos</p>
+            <p className="text-sm">Escribí un mensaje para comenzar la conversación con Biti</p>
           </div>
         )}
 

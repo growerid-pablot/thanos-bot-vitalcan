@@ -20,23 +20,29 @@ export async function sendTicketNotification(ticket: TicketInfo): Promise<void> 
   });
 
   const d = ticket.claimData;
-  const clientName = d.clientIsNew
-    ? 'Cliente nuevo'
-    : d.clientName ?? 'No identificado';
+  const clientName = d.personalName ?? 'No identificado';
+  const motivo = d.reasonSubcategory ?? d.reasonCategory ?? 'Sin especificar';
 
-  // Build details – always send all properties even if empty
+  // Always send ALL properties even if empty
   const details: Record<string, string> = {
-    'CUIT': d.clientCuit ?? '',
+    'Tipo de usuario': d.userType === 'pdv' ? 'Punto de venta' : d.userType === 'consumer' ? 'Consumidor final' : '',
+    'Distribuidor (PDV)': d.pdvDistributor ?? '',
     'Producto': d.product ?? '',
     'Lote': d.lot ?? '',
     'Fecha de envasado': d.packagingDate ?? '',
     'Fecha de vencimiento': d.expiryDate ?? '',
-    'Descripción': d.reason ?? '',
-    'Lugar de compra': d.purchaseLocation ?? '',
-    'Número de factura': d.invoiceNumber ?? '',
-    'Fecha de factura': d.invoiceDate ?? '',
-    'Número de remito': d.waybillNumber ?? '',
-    'Fecha de entrega': d.deliveryDate ?? '',
+    'Categoría motivo': d.reasonCategory ?? '',
+    'Subcategoría motivo': d.reasonSubcategory ?? '',
+    'Descripción': d.reasonDetail ?? '',
+    'Modalidad de compra': d.purchaseModality ?? '',
+    'Lugar de compra': d.purchaseStore ?? '',
+    'Vendedor Mercado Libre': d.mlSeller ?? '',
+    'Nombre': d.personalName ?? '',
+    'Email': d.personalEmail ?? '',
+    'Teléfono': d.personalPhone ?? '',
+    'Dirección': d.personalAddress ?? '',
+    'Código postal': d.personalPostal ?? '',
+    'Horario de contacto': d.personalReception ?? '',
   };
 
   try {
@@ -45,7 +51,7 @@ export async function sendTicketNotification(ticket: TicketInfo): Promise<void> 
         ticketNumber: ticket.ticketNumber,
         clientName,
         claimType: ticket.claimType,
-        reason: d.reasonFormatted ?? d.reason ?? 'Sin especificar',
+        reason: motivo,
         priority: ticket.priority,
         createdAt,
         details,
@@ -53,9 +59,9 @@ export async function sendTicketNotification(ticket: TicketInfo): Promise<void> 
     });
 
     if (error) {
-      console.error('[TicketNotification] Error enviando email:', error);
+      console.error('[TicketNotification] Error enviando notificación:', error);
     } else {
-      console.log(`[TicketNotification] Email enviado para ticket ${ticket.ticketNumber}`);
+      console.log(`[TicketNotification] Notificación enviada para ticket ${ticket.ticketNumber}`);
     }
   } catch (err) {
     console.error('[TicketNotification] Error inesperado:', err);

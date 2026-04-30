@@ -219,7 +219,7 @@ function formatClaimSummary(d: ClaimData): string {
     lines.push(`• **Distribuidor:** ${d.pdvDistributor}`);
   }
 
-  lines.push(
+  const restantes = [
     `• **Producto:** ${d.product ?? '(pendiente)'}`,
     `• **Lote:** ${d.lot ?? '(pendiente)'}`,
     `• **Fecha de envasado:** ${d.packagingDate ?? '(pendiente)'}`,
@@ -234,7 +234,8 @@ function formatClaimSummary(d: ClaimData): string {
     `• **Dirección:** ${d.personalAddress ?? '(pendiente)'}`,
     `• **Código postal:** ${d.personalPostal ?? '(pendiente)'}`,
     `• **Horario de recepción:** ${d.personalReception ?? '(pendiente)'}`,
-  ).filter(Boolean);
+  ].filter(Boolean);
+  lines.push(...restantes);
 
   return lines.join('\n');
 }
@@ -297,7 +298,8 @@ export function processUserInput(state: ConversationState, input: string, claimD
 
     // ── Reclamo: producto ─────────────────────────────────────────────────
     case 'claim_user_confirmed':
-      return handleClaimUserConfirmed(input, data);
+      // Estado legacy: re-encaminamos al inicio del flujo de reclamo.
+      return startClaimFlow(data);
 
     case 'claim_product_name':
       return handleProductName(input, data);
@@ -610,6 +612,16 @@ function handleProductSelect(input: string, data: ClaimData): BotResponse {
       messages: ['Indicame nuevamente el nombre del producto tal como figura en el envase.'],
       nextState: 'claim_product_name',
       claimData: { ...data, product: null, _productCandidates: undefined },
+    };
+  }
+  // Validar que la opción seleccionada sea uno de los candidatos ofrecidos
+  const candidates = data._productCandidates ?? [];
+  if (!candidates.includes(input)) {
+    return {
+      messages: ['Por favor seleccioná uno de los productos sugeridos:'],
+      quickReplies: [...candidates, 'Ninguno de estos'],
+      nextState: 'claim_product_select',
+      claimData: data,
     };
   }
   const updated = { ...data, product: input, _productCandidates: undefined };
@@ -1126,7 +1138,7 @@ export const DEMO_SCENARIOS = [
       'Hacer un reclamo',
       'No, compro en supermercado u otro comercio',
       'Balanced perro adulto',
-      'Sí, es ese',
+      'Balanced Perro Adulto Raza Grande x 20 Kg',
       'A12345',
       '10/01/2026',
       '10/07/2026',
@@ -1153,8 +1165,8 @@ export const DEMO_SCENARIOS = [
       'No, compro en una veterinaria o pet shop',
       'Soy el punto de venta y quiero hacer el reclamo yo',
       'Distribuidora Norte SRL',
-      'Royal Canin gato adulto',
-      'Sí, es ese',
+      'Hop Gato Adulto',
+      'Hop! Gato Adulto x 15 Kg',
       'B98765',
       '05/02/2026',
       '05/08/2026',
@@ -1179,8 +1191,8 @@ export const DEMO_SCENARIOS = [
       'Hola',
       'Hacer un reclamo',
       'No, compro en supermercado u otro comercio',
-      'Vitalcan gato adulto 15kg',
-      'Sí, continuar con ese producto',
+      'Premium gato adulto 15kg',
+      'Premium Gato Adulto x 15 Kg',
       'C54321',
       '20/03/2026',
       '20/09/2026',
