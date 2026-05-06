@@ -415,10 +415,10 @@ function handleMainMenu(input: string): BotResponse {
   switch (input) {
     case "Hacer un reclamo":
       return {
-        messages: ["Perfecto. Antes de continuar, quisiera saber cómo nos conociste.¿Comprás directamente a Vitalcán?"],
+        messages: ["Perfecto. Antes de continuar, Podrías contarnos como compraste?"],
         quickReplies: [
-          "Sí, soy cliente directo / distribuidor",
-          "No, compro en una veterinaria o pet shop",
+          "Soy distribuirdor / Cliente Directo",
+          "Compro a un distribuidor / Punto de venta",
           "No, compro en supermercado u otro comercio",
         ],
         nextState: "awaiting_user_type",
@@ -453,7 +453,7 @@ function handleMainMenu(input: string): BotResponse {
 // ─── Identificación tipo de usuario ─────────────────────────────────────────
 
 function handleUserType(input: string, data: ClaimData): BotResponse {
-  if (input === "Sí, soy cliente directo / distribuidor") {
+  if (input === "Soy distribuirdor / Cliente Directo") {
     return {
       messages: [
         "Entendido. Los clientes directos y distribuidores deben gestionar sus reclamos a través del **portal de clientes oficial**.",
@@ -468,7 +468,7 @@ function handleUserType(input: string, data: ClaimData): BotResponse {
 
   // Punto de venta o consumidor final
   const isPdv =
-    input === "No, compro en una veterinaria o pet shop" ||
+    input === "Compro a un distribuidor / Punto de venta" ||
     input.toLowerCase().includes("veterinaria") ||
     input.toLowerCase().includes("pet shop") ||
     input.toLowerCase().includes("punto de venta");
@@ -1348,7 +1348,7 @@ export const DEMO_SCENARIOS = [
     steps: [
       "Hola",
       "Hacer un reclamo",
-      "No, compro en una veterinaria o pet shop",
+      "Compro a un distribuidor / Punto de venta",
       "Soy el punto de venta y quiero hacer el reclamo yo",
       "Distribuidora Norte SRL",
       "Hop Gato Adulto",
@@ -1400,7 +1400,7 @@ export const DEMO_SCENARIOS = [
   },
   {
     label: "Distribuidor redirigido",
-    steps: ["Hola", "Hacer un reclamo", "Sí, soy cliente directo / distribuidor"],
+    steps: ["Hola", "Hacer un reclamo", "Soy distribuirdor / Cliente Directo"],
   },
   {
     label: "Consulta",
