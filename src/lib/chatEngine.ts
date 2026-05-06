@@ -295,6 +295,12 @@ export function processUserInput(state: ConversationState, input: string, claimD
     case "purchase_info":
       return handlePurchaseInfo(input);
 
+    case "purchase_location":
+      return handlePurchaseLocation(input);
+
+    case "purchase_province":
+      return handlePurchaseProvince(input);
+
     case "consultation_info":
       return handleConsultationInfo(input);
 
@@ -527,11 +533,42 @@ function startClaimFlow(data: ClaimData): BotResponse {
 
 // ─── Compra / Consulta ────────────────────────────────────────────────────────
 
+// DESPUÉS
 function handlePurchaseInfo(input: string): BotResponse {
   if (input === "Volver al menú principal") {
     return { messages: ["¿En qué más puedo ayudarte?"], quickReplies: MAIN_MENU_OPTIONS, nextState: "main_menu" };
   }
   return handleMainMenu(input);
+}
+
+function handlePurchaseLocation(input: string): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 2) {
+    return {
+      messages: ["¿Podés indicarme tu localidad?"],
+      nextState: "purchase_location",
+    };
+  }
+  return {
+    messages: ["¿Y en qué provincia?"],
+    nextState: "purchase_province",
+    claimData: { purchaseLocation: trimmed } as any,
+  };
+}
+
+function handlePurchaseProvince(input: string): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 2) {
+    return {
+      messages: ["¿Podés indicarme tu provincia?"],
+      nextState: "purchase_province",
+    };
+  }
+  return {
+    messages: ["¡Muchas gracias! A la brevedad será contactado por un representante comercial. 😊"],
+    quickReplies: ["Volver al menú principal", "Finalizar"],
+    nextState: "completed_step",
+  };
 }
 
 function handleConsultationInfo(input: string): BotResponse {
