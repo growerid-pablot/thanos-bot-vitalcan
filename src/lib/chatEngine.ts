@@ -11,6 +11,7 @@ export type ConversationState =
   | "awaiting_pdv_or_consumer"
   // Opciones principales
   | "purchase_info"
+  | "purchase_user_type"
   | "purchase_location"
   | "purchase_province"
   | "consultation_info"
@@ -292,6 +293,9 @@ export function processUserInput(state: ConversationState, input: string, claimD
       return handlePdvOrConsumer(input, data);
 
     // ── Opciones: compra y consulta ────────────────────────────────────────
+    case "purchase_user_type":
+      return handlePurchaseUserType(input);
+
     case "purchase_info":
       return handlePurchaseInfo(input);
 
@@ -422,10 +426,10 @@ function handleMainMenu(input: string): BotResponse {
     case "Quiero comprar":
       return {
         messages: [
-          "¡Genial! Para conectarte con un representante comercial, necesito saber dónde estás ubicado.",
-          "¿En qué localidad vivís?",
+          "¡Genial! Para conectarte con un representante comercial, primero contame: ¿sos consumidor final o punto de venta?",
         ],
-        nextState: "purchase_location",
+        quickReplies: ["Consumidor final", "Punto de venta"],
+        nextState: "purchase_user_type",
         claimData: {},
       };
     case "Tengo una consulta":
@@ -541,6 +545,14 @@ function handlePurchaseInfo(input: string): BotResponse {
   return handleMainMenu(input);
 }
 
+function handlePurchaseUserType(input: string): BotResponse {
+  // Sin importar la opción elegida, pasamos directo a pedir localidad
+  return {
+    messages: ["¿En qué localidad estás ubicado?"],
+    nextState: "purchase_location",
+  };
+}
+
 function handlePurchaseLocation(input: string): BotResponse {
   const trimmed = input.trim();
   if (trimmed.length < 2) {
@@ -552,7 +564,6 @@ function handlePurchaseLocation(input: string): BotResponse {
   return {
     messages: ["¿Y en qué provincia?"],
     nextState: "purchase_province",
-    claimData: { purchaseLocation: trimmed } as any,
   };
 }
 
