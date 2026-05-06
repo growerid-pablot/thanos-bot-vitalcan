@@ -415,10 +415,7 @@ function handleMainMenu(input: string): BotResponse {
   switch (input) {
     case "Hacer un reclamo":
       return {
-        messages: [
-          "Perfecto. Antes de continuar, necesito saber cómo nos conociste.",
-          "¿Comprás directamente a Vitalcán?",
-        ],
+        messages: ["Perfecto. Antes de continuar, quisiera saber cómo nos conociste.¿Comprás directamente a Vitalcán?"],
         quickReplies: [
           "Sí, soy cliente directo / distribuidor",
           "No, compro en una veterinaria o pet shop",
