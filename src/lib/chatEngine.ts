@@ -456,8 +456,7 @@ function handleUserType(input: string, data: ClaimData): BotResponse {
   if (input === "Soy distribuirdor / Cliente Directo") {
     return {
       messages: [
-        "Entendido. Los clientes directos y distribuidores deben gestionar sus reclamos a través del **portal de clientes oficial**.",
-        "👉 Por favor ingresá a tu portal para registrar tu reclamo allí. Si tenés problemas para acceder, contactá a tu representante comercial.",
+        "Entendido. Los clientes directos y distribuidores deben gestionar sus reclamos a través del **portal de clientes oficial**. Por favor ingresá a tu portal para registrar tu reclamo allí. Si tenés problemas para acceder, contactá a tu representante comercial.",
         "¿Puedo ayudarte con algo más?",
       ],
       quickReplies: ["Volver al menú principal", "Quiero comprar", "Tengo una consulta"],
