@@ -414,12 +414,10 @@ function handleMainMenu(input: string): BotResponse {
     case "Quiero comprar":
       return {
         messages: [
-          "¡Genial! Para conocer nuestros productos y puntos de venta podés visitar nuestra web o contactar a nuestros representantes.",
-          "📄 [Descargar lista de precios](/Lista_de_precios.pdf)",
-          "¿Necesitás algo más?",
+          "¡Genial! Para conectarte con un representante comercial, necesito saber dónde estás ubicado.",
+          "¿En qué localidad vivís?",
         ],
-        quickReplies: ["Volver al menú principal", "Hacer un reclamo", "Tengo una consulta"],
-        nextState: "purchase_info",
+        nextState: "purchase_location",
         claimData: {},
       };
     case "Tengo una consulta":
