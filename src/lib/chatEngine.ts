@@ -11,6 +11,8 @@ export type ConversationState =
   | "awaiting_pdv_or_consumer"
   // Opciones principales
   | "purchase_info"
+  | "purchase_location"
+  | "purchase_province"
   | "consultation_info"
   // Reclamo — tipo de usuario
   | "claim_user_confirmed"
