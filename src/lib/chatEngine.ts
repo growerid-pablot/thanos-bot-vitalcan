@@ -438,7 +438,9 @@ function handleMainMenu(input: string): BotResponse {
       };
     case "Tengo una consulta":
       return {
-        messages: ["Con gusto te ayudo. Para poder responderte, ¿cuál es tu dirección de email?"],
+        messages: [
+          "Con gusto te ayudo. Para poder iniciar el proceso, primero te solicitaré una dirección de email, ¿cuál es tu dirección de email?",
+        ],
         nextState: "consultation_email",
         claimData: {},
       };
