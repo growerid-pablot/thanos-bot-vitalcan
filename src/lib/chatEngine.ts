@@ -14,8 +14,8 @@ export type ConversationState =
   | "purchase_user_type"
   | "purchase_location"
   | "purchase_province"
-  | 'consultation_email'
-  | 'consultation_info'
+  | "consultation_email"
+  | "consultation_info"
   // Reclamo — tipo de usuario
   | "claim_user_confirmed"
   // Reclamo — producto
@@ -306,9 +306,9 @@ export function processUserInput(state: ConversationState, input: string, claimD
     case "purchase_province":
       return handlePurchaseProvince(input);
 
-    case 'consultation_email':
+    case "consultation_email":
       return handleConsultationEmail(input);
-      
+
     case "consultation_info":
       return handleConsultationInfo(input);
 
@@ -436,12 +436,10 @@ function handleMainMenu(input: string): BotResponse {
         nextState: "purchase_user_type",
         claimData: {},
       };
-    case 'Tengo una consulta':
+    case "Tengo una consulta":
       return {
-        messages: [
-          'Con gusto te ayudo. Para poder responderte, ¿cuál es tu dirección de email?',
-        ],
-        nextState: 'consultation_email',
+        messages: ["Con gusto te ayudo. Para poder responderte, ¿cuál es tu dirección de email?"],
+        nextState: "consultation_email",
         claimData: {},
       };
     default:
@@ -590,13 +588,13 @@ function handleConsultationEmail(input: string): BotResponse {
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
   if (!emailOk) {
     return {
-      messages: ['El email no parece válido. Por favor ingresalo nuevamente (ej: nombre@correo.com).'],
-      nextState: 'consultation_email',
+      messages: ["El email no parece válido. Por favor ingresalo nuevamente (ej: nombre@correo.com)."],
+      nextState: "consultation_email",
     };
   }
   return {
-    messages: ['Gracias. Ahora contame brevemente tu consulta y un asesor te va a responder a la brevedad.'],
-    nextState: 'consultation_info',
+    messages: ["Gracias. Ahora contame brevemente tu consulta y un asesor te va a responder a la brevedad."],
+    nextState: "consultation_info",
     claimData: { personalEmail: trimmed } as any,
   };
 }
@@ -605,8 +603,8 @@ function handleConsultationInfo(input: string): BotResponse {
   const trimmed = input.trim();
   if (trimmed.length < 5) {
     return {
-      messages: ['¿Podrías contarme un poco más sobre tu consulta?'],
-      nextState: 'consultation_info',
+      messages: ["¿Podrías contarme un poco más sobre tu consulta?"],
+      nextState: "consultation_info",
     };
   }
   const num = generateClaimNumber();
@@ -614,22 +612,11 @@ function handleConsultationInfo(input: string): BotResponse {
     messages: [
       `Gracias. Tu consulta fue registrada con el número **${num}**. Un asesor te va a responder a la brevedad. 😊`,
     ],
-    quickReplies: ['Volver al menú principal', 'Finalizar'],
-    nextState: 'completed_step',
-    ticketInfo: { ticketNumber: num, claimType: 'consulta', priority: 'Normal' },
-  };
-}
-  const num = generateClaimNumber();
-  return {
-    messages: [
-      `Gracias. Tu consulta fue registrada con el número **${num}**. Un asesor te va a responder a la brevedad. 😊`,
-    ],
-    quickReplies: ["Volver al menú principal", "Hacer un reclamo", "Finalizar"],
+    quickReplies: ["Volver al menú principal", "Finalizar"],
     nextState: "completed_step",
     ticketInfo: { ticketNumber: num, claimType: "consulta", priority: "Normal" },
   };
 }
-
 // ─── Producto ─────────────────────────────────────────────────────────────────
 
 function handleProductName(input: string, data: ClaimData): BotResponse {
