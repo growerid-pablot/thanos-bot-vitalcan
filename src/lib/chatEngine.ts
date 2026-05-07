@@ -366,18 +366,6 @@ export function processUserInput(state: ConversationState, input: string, claimD
     case "claim_personal_email":
       return handlePersonalEmail(input, data);
 
-    case "claim_personal_phone":
-      return handlePersonalPhone(input, data);
-
-    case "claim_personal_address":
-      return handlePersonalAddress(input, data);
-
-    case "claim_personal_postal":
-      return handlePersonalPostal(input, data);
-
-    case "claim_personal_reception":
-      return handlePersonalReception(input, data);
-
     // ── PDV: distribuidor ─────────────────────────────────────────────────
     case "claim_pdv_distributor":
       return handlePdvDistributor(input, data);
@@ -1042,80 +1030,19 @@ function handlePersonalEmail(input: string, data: ClaimData): BotResponse {
   }
   const updated = { ...data, personalEmail: trimmed };
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return {
-    messages: ["¿Cuál es tu número de teléfono (con código de área)?"],
-    nextState: "claim_personal_phone",
-    claimData: updated,
-  };
+  return goToSummary(updated);
 }
 
-function handlePersonalPhone(input: string, data: ClaimData): BotResponse {
-  const trimmed = input.trim();
-  if (trimmed.length < 7) {
-    return {
-      messages: ["El teléfono parece incompleto. Ingresalo con código de área (ej: 11 4567-8901)."],
-      nextState: "claim_personal_phone",
-      claimData: data,
-    };
-  }
-  const updated = { ...data, personalPhone: trimmed };
-  if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return {
-    messages: ["¿Cuál es tu dirección particular (calle y número)?"],
-    nextState: "claim_personal_address",
-    claimData: updated,
-  };
-}
-
-function handlePersonalAddress(input: string, data: ClaimData): BotResponse {
-  const trimmed = input.trim();
-  if (trimmed.length < 5) {
-    return {
-      messages: ["¿Podés indicarme tu dirección completa (calle y número)?"],
-      nextState: "claim_personal_address",
-      claimData: data,
-    };
-  }
-  const updated = { ...data, personalAddress: trimmed };
-  if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return { messages: ["¿Cuál es tu código postal?"], nextState: "claim_personal_postal", claimData: updated };
-}
-
-function handlePersonalPostal(input: string, data: ClaimData): BotResponse {
-  const trimmed = input.trim();
-  if (trimmed.length < 3) {
-    return { messages: ["¿Podés indicarme tu código postal?"], nextState: "claim_personal_postal", claimData: data };
-  }
-  const updated = { ...data, personalPostal: trimmed };
-  if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return {
-    messages: [
-      "Por último, ¿cuál es tu horario preferido para que nos contactemos con vos? (ej: mañanas, tardes, de 9 a 17hs)",
-    ],
-    nextState: "claim_personal_reception",
-    claimData: updated,
-  };
-}
-
-function handlePersonalReception(input: string, data: ClaimData): BotResponse {
-  const trimmed = input.trim();
-  if (trimmed.length < 2) {
-    return {
-      messages: ["¿Podés indicarme tu horario preferido de contacto?"],
-      nextState: "claim_personal_reception",
-      claimData: data,
-    };
-  }
-  const updated = { ...data, personalReception: trimmed };
+function goToSummary(data: ClaimData): BotResponse {
   return {
     messages: [
       "Perfecto. Este es el resumen de tu reclamo:",
-      formatClaimSummary(updated),
+      formatClaimSummary(data),
       "¿Querés confirmar o editar algún dato?",
     ],
     quickReplies: ["Confirmar reclamo", "Editar datos"],
     nextState: "claim_summary",
-    claimData: updated,
+    claimData: data,
   };
 }
 
@@ -1215,17 +1142,6 @@ function handleClaimEditSelect(input: string, data: ClaimData): BotResponse {
     },
     Nombre: { msg: "¿Cuál es tu nombre y apellido?", state: "claim_personal_name", clear: { personalName: null } },
     Email: { msg: "¿Cuál es tu email?", state: "claim_personal_email", clear: { personalEmail: null } },
-    Teléfono: { msg: "¿Cuál es tu teléfono?", state: "claim_personal_phone", clear: { personalPhone: null } },
-    Dirección: { msg: "¿Cuál es tu dirección?", state: "claim_personal_address", clear: { personalAddress: null } },
-    "Código postal": {
-      msg: "¿Cuál es tu código postal?",
-      state: "claim_personal_postal",
-      clear: { personalPostal: null },
-    },
-    Horario: {
-      msg: "¿Cuál es tu horario preferido de contacto?",
-      state: "claim_personal_reception",
-      clear: { personalReception: null },
     },
   };
 
@@ -1259,10 +1175,6 @@ function handleClaimEditSelect(input: string, data: ClaimData): BotResponse {
       "Local de compra",
       "Nombre",
       "Email",
-      "Teléfono",
-      "Dirección",
-      "Código postal",
-      "Horario",
     ],
     nextState: "claim_edit_select",
     claimData: data,
