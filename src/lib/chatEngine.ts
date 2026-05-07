@@ -1142,7 +1142,6 @@ function handleClaimEditSelect(input: string, data: ClaimData): BotResponse {
     },
     Nombre: { msg: "¿Cuál es tu nombre y apellido?", state: "claim_personal_name", clear: { personalName: null } },
     Email: { msg: "¿Cuál es tu email?", state: "claim_personal_email", clear: { personalEmail: null } },
-    },
   };
 
   const entry = map[input];
