@@ -1,4 +1,5 @@
 import { detectHealthUrgency } from "./healthUrgency";
+import { findTopProductMatches } from "./productMatching";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -248,19 +249,8 @@ function formatClaimSummary(d: ClaimData): string {
 }
 
 // ─── Búsqueda de producto simple ─────────────────────────────────────────────
-// Importamos el matcher existente si está disponible, si no usamos fallback básico
-let _findTopProductMatches: ((q: string, n: number) => { name: string }[]) | null = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const mod = require("./productMatching");
-  _findTopProductMatches = mod.findTopProductMatches;
-} catch {
-  _findTopProductMatches = null;
-}
-
 function searchProducts(query: string): { name: string }[] {
-  if (_findTopProductMatches) return _findTopProductMatches(query, 5);
-  return [];
+  return findTopProductMatches(query, 5);
 }
 
 // ─── Entry point ─────────────────────────────────────────────────────────────
