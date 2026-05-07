@@ -924,13 +924,9 @@ function handleHealthAlert(input: string, data: ClaimData): BotResponse {
 }
 
 function askPurchaseModality(data: ClaimData): BotResponse {
-  // PDV: saltear pregunta de modalidad, ir directo a local de compra
+  // PDV: saltear modalidad y local, ir directo a imágenes
   if (data.userType === "pdv") {
-    return {
-      messages: ["¿En qué local o comercio realizaste la compra del producto?"],
-      nextState: "claim_purchase_store",
-      claimData: { ...data, purchaseModality: "presencial" },
-    };
+    return askImagesInfo({ ...data, purchaseModality: "presencial" });
   }
   return {
     messages: ["¿Cómo realizaste la compra del producto?"],
