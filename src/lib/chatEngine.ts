@@ -496,18 +496,7 @@ function handleDistributorRedirect(input: string): BotResponse {
 }
 
 function handlePdvOrConsumer(input: string, data: ClaimData): BotResponse {
-  if (input === "Soy el punto de venta y quiero hacer el reclamo yo") {
-    return {
-      messages: [
-        "Entendido. ¿A qué distribuidor le comprás el producto?",
-        'Si comprás directamente a Vitalcán en el AMBA, indicá "Compra directa Vitalcán".',
-      ],
-      nextState: "claim_pdv_distributor",
-      claimData: { ...data, userType: "pdv" },
-    };
-  }
-  // Consumidor final
-  return startClaimFlow({ ...data, userType: "consumer" });
+  return startClaimFlow({ ...data, userType: "pdv" });
 }
 
 function handlePdvDistributor(input: string, data: ClaimData): BotResponse {
