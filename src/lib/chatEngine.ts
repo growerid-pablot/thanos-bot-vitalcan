@@ -163,31 +163,29 @@ function isMissingDataResponse(input: string): boolean {
 
 // ─── Motivos agrupados ────────────────────────────────────────────────────────
 
-const REASON_CATEGORIES = ["Problemas de envase", "Contenido / calidad del producto", "Salud de mi mascota"];
+const HEALTH_CATEGORY = "3- Problemas de salud";
+
+const REASON_CATEGORIES = ["1- Problemas de envasado", "2- Contenido del producto", HEALTH_CATEGORY, "4- Otros"];
 
 const REASON_SUBCATEGORIES: Record<string, string[]> = {
-  "Problemas de envase": [
-    "Bolsa rota o mal sellada",
-    "Bolsa con sticker sin lata",
-    "Falta rótulo (lote/vencimiento/elaboración)",
-    "Menos kilos de los indicados",
-    "Envase lata dañado",
-    "Envase pouch dañado",
+  "1- Problemas de envasado": [
+    "Bolsa mal sellada",
+    "Envase - Bolsa",
+    "Envase - Lata",
+    "Envase - Pouch",
+    "Falta Rotulo (Venc/Lote/Elaboración)",
+    "Packaging - Menos Kilos",
   ],
-  "Contenido / calidad del producto": [
-    "Presencia de bichos",
-    "Hongos / moho",
-    "Mal olor",
-    "Material extraño / objetos",
-    "Problema con las croquetas",
-    "Palatabilidad (mascota no lo acepta)",
+  "2- Contenido del producto": [
+    "Bichos",
+    "Croquetas (tamaño, color extraños)",
+    "Hongos/Mohos",
+    "Mal Olor",
+    "Material Extraño - Objetos",
+    "Palatabilidad",
   ],
-  "Salud de mi mascota": [
-    "Gastroenteritis / diarrea / vómitos",
-    "Problemas de piel y pelo",
-    "Problemas urinarios",
-    "Otro problema de salud",
-  ],
+  [HEALTH_CATEGORY]: ["Gastroenteritis", "Problemas Piel y Pelo", "Problemas urinarios"],
+  "4- Otros": ["Otros motivos"],
 };
 
 // ─── Menus principales ───────────────────────────────────────────────────────
@@ -877,7 +875,7 @@ function handleReasonDetail(input: string, data: ClaimData): BotResponse {
   }
 
   // Detección de urgencia de salud en descripción libre
-  if (!data.reasonCategory?.includes("Salud") && detectHealthUrgency(trimmed)) {
+  if (data.reasonCategory !== HEALTH_CATEGORY && detectHealthUrgency(trimmed)) {
     return {
       messages: [
         "⚠️ Detecté que tu descripción podría estar relacionada con la **salud de tu mascota**.",
@@ -904,9 +902,7 @@ function handleHealthAlert(input: string, data: ClaimData): BotResponse {
     };
   }
 
-  const isUrgent =
-    input === "Sí, marcar como urgente" ||
-    Object.values(REASON_SUBCATEGORIES["Salud de mi mascota"] ?? []).includes(input);
+  const isUrgent = input === "Sí, marcar como urgente" || (REASON_SUBCATEGORIES[HEALTH_CATEGORY] ?? []).includes(input);
 
   if (isUrgent) {
     const subcat = (REASON_SUBCATEGORIES[HEALTH_CATEGORY] ?? []).includes(input) ? input : data.reasonSubcategory;
