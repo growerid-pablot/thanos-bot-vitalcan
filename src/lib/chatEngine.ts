@@ -474,12 +474,9 @@ function handleUserType(input: string, data: ClaimData): BotResponse {
 
   if (isPdv) {
     return {
-      messages: [
-        "Perfecto. ¿Sos vos quien sufrió el inconveniente o estás reportando el reclamo en nombre de un cliente?",
-      ],
-      quickReplies: ["Soy el punto de venta y quiero hacer el reclamo yo", "Soy consumidor final"],
-      nextState: "awaiting_pdv_or_consumer",
-      claimData: { ...data },
+      messages: ["Entendido. ¿A qué distribuidor le comprás el producto?"],
+      nextState: "claim_pdv_distributor",
+      claimData: { ...data, userType: "pdv" },
     };
   }
 
