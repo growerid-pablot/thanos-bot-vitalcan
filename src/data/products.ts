@@ -1857,7 +1857,7 @@ export const products: ProductRecord[] = [
   { id: '201104', name: 'Tacho Balanced 4 KG 1 Caja x 20 Unidades', internalReference: '201104', aliases: ['tacho balanced 4 kg 1 caja x 20 unidades'], brand: 'Balanced', species: 'otro', category: 'alimento_seco', active: true },
   { id: '201105', name: 'TV 32 ´´ x 1 unidad', internalReference: '201105', aliases: ['tv 32 ´´ x 1 unidad', 'tv 32  x 1 unidad'], brand: 'Vitalcán', species: 'otro', category: 'otro', active: true },
   { id: '201106', name: 'TV 43´´  x 1 unidad', internalReference: '201106', aliases: ['tv 43´´  x 1 unidad', 'tv 43 x 1 unidad'], brand: 'Vitalcán', species: 'otro', category: 'otro', active: true },
-  { id: '201107', name: 'TV 50\'\'  x 1 unidad', internalReference: '201107', aliases: ['tv 50\\'\\'  x 1 unidad', 'tv 50\\'\\' x 1 unidad'], brand: 'Vitalcán', species: 'otro', category: 'otro', active: true },
+  { id: '201107', name: "TV 50'' x 1 unidad", internalReference: '201107', aliases: ["tv 50'' x 1 unidad"], brand: 'Vitalcán', species: 'otro', category: 'otro', active: true },
   { id: '201108', name: 'TV 65´´  x 1 unidad', internalReference: '201108', aliases: ['tv 65´´  x 1 unidad', 'tv 65 x 1 unidad'], brand: 'Vitalcán', species: 'otro', category: 'otro', active: true },
   { id: '201109', name: 'Tacho canal masivo Fliliales (Premium, Hop, Belcan) x 1', internalReference: '201109', aliases: ['tacho canal masivo fliliales (premium, hop, belcan) x 1'], brand: 'Premium', species: 'otro', category: 'otro', active: true },
   { id: '201110', name: 'Cenefas Balanced NR Gato Salmon/Cordero x 1', internalReference: '201110', aliases: ['cenefas balanced nr gato salmon/cordero x 1'], brand: 'Balanced', species: 'gato', category: 'otro', active: true },
