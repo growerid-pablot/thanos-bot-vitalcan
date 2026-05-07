@@ -923,17 +923,6 @@ function handleHealthAlert(input: string, data: ClaimData): BotResponse {
   return askPurchaseModality(data);
 }
 
-// ─── Modalidad de compra ──────────────────────────────────────────────────────
-
-function askPurchaseModality(data: ClaimData): BotResponse {
-  return {
-    messages: ["¿Cómo realizaste la compra del producto?"],
-    quickReplies: ["Presencial (local físico)", "Virtual (online)"],
-    nextState: "claim_purchase_modality",
-    claimData: data,
-  };
-}
-
 function askPurchaseModality(data: ClaimData): BotResponse {
   // PDV: saltear pregunta de modalidad, ir directo a local de compra
   if (data.userType === "pdv") {
@@ -948,6 +937,27 @@ function askPurchaseModality(data: ClaimData): BotResponse {
     quickReplies: ["Presencial (local físico)", "Virtual (online)"],
     nextState: "claim_purchase_modality",
     claimData: data,
+  };
+}
+
+function handlePurchaseModality(input: string, data: ClaimData): BotResponse {
+  const isVirtual = input.toLowerCase().includes("virtual") || input.toLowerCase().includes("online");
+  const modality = isVirtual ? "virtual" : "presencial";
+  const updated = { ...data, purchaseModality: modality as "virtual" | "presencial" };
+
+  if (isVirtual) {
+    return {
+      messages: ["¿En qué plataforma o sitio realizaste la compra?"],
+      quickReplies: ["Mercado Libre", "Tienda oficial Vitalcán", "Otro sitio web"],
+      nextState: "claim_purchase_store",
+      claimData: updated,
+    };
+  }
+
+  return {
+    messages: ["¿En qué local o comercio lo compraste? (nombre del negocio o cadena)"],
+    nextState: "claim_purchase_store",
+    claimData: updated,
   };
 }
 
