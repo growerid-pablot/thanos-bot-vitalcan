@@ -829,7 +829,7 @@ function handleReasonCategory(input: string, data: ClaimData): BotResponse {
   }
 
   // Salud: alerta urgente directa
-  if (input === "Salud de mi mascota") {
+  if (input === HEALTH_CATEGORY) {
     return {
       messages: [
         "⚠️ Detecté que tu reclamo está relacionado con la **salud de tu mascota**.",
@@ -909,9 +909,7 @@ function handleHealthAlert(input: string, data: ClaimData): BotResponse {
     Object.values(REASON_SUBCATEGORIES["Salud de mi mascota"] ?? []).includes(input);
 
   if (isUrgent) {
-    const subcat = Object.values(REASON_SUBCATEGORIES["Salud de mi mascota"] ?? []).includes(input)
-      ? input
-      : data.reasonSubcategory;
+    const subcat = (REASON_SUBCATEGORIES[HEALTH_CATEGORY] ?? []).includes(input) ? input : data.reasonSubcategory;
     const updatedData = { ...data, reasonSubcategory: subcat };
 
     // Si tiene datos personales previos no pedimos de nuevo — saltamos a resumen de urgente
