@@ -204,37 +204,6 @@ const REASON_SUBCATEGORIES: Record<string, string[]> = {
 
 const MAIN_MENU_OPTIONS = ["Hacer un reclamo", "Quiero comprar", "Tengo una consulta"];
 
-// ─── Motivos agrupados ────────────────────────────────────────────────────────
-
-const HEALTH_CATEGORY = "3- Problemas de salud";
-
-const REASON_CATEGORIES = ["1- Problemas de envasado", "2- Contenido del producto", HEALTH_CATEGORY, "4- Otros"];
-
-const REASON_SUBCATEGORIES: Record<string, string[]> = {
-  "1- Problemas de envasado": [
-    "Bolsa mal sellada",
-    "Envase - Bolsa",
-    "Envase - Lata",
-    "Envase - Pouch",
-    "Falta Rotulo (Venc/Lote/Elaboración)",
-    "Packaging - Menos Kilos",
-  ],
-  "2- Contenido del producto": [
-    "Bichos",
-    "Croquetas (tamaño, color extraños)",
-    "Hongos/Mohos",
-    "Mal Olor",
-    "Material Extraño - Objetos",
-    "Palatabilidad",
-  ],
-  [HEALTH_CATEGORY]: ["Gastroenteritis", "Problemas Piel y Pelo", "Problemas urinarios"],
-  "4- Otros": ["Otros motivos"],
-};
-
-// ─── Menus principales ───────────────────────────────────────────────────────
-
-const MAIN_MENU_OPTIONS = ["Hacer un reclamo", "Quiero comprar", "Tengo una consulta"];
-
 // ─── Cierre de ticket ────────────────────────────────────────────────────────
 
 function buildClaimClosure(num: string, priority: string): string[] {
@@ -1001,18 +970,6 @@ function askImagesInfo(data: ClaimData): BotResponse {
   };
 }
 
-function handleImagesInfo(input: string, data: ClaimData): BotResponse {
-  return {
-    messages: [
-      "Perfecto. ✅ Ahora necesito tus datos para poder contactarte y gestionar la reposición del producto.",
-      "¿Cuál es tu nombre y apellido?",
-    ],
-    nextState: "claim_personal_name",
-    claimData: data,
-  };
-}
-
-// ─── Datos personales ─────────────────────────────────────────────────────────
 function handleImagesInfo(input: string, data: ClaimData): BotResponse {
   return {
     messages: [
