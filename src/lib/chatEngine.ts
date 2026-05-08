@@ -49,6 +49,8 @@ export type ConversationState =
   | "claim_personal_reception"
   // Reclamo — PDV datos adicionales
   | "claim_pdv_distributor"
+  | "claim_pdv_location"
+  | "claim_pdv_province"
   // Resumen y cierre
   | "claim_summary"
   | "claim_edit_select"
@@ -72,6 +74,8 @@ export interface ClaimData {
   userType?: "consumer" | "pdv" | null;
   // PDV
   pdvDistributor?: string | null;
+  pdvLocation?: string | null;
+  pdvProvince?: string | null;
   // Producto actual (en edición)
   product?: string | null;
   _productCandidates?: string[];
@@ -247,6 +251,8 @@ function formatClaimSummary(d: ClaimData): string {
 
   if (d.userType === "pdv" && d.pdvDistributor) {
     lines.push(`• **Distribuidor:** ${d.pdvDistributor}`);
+    if (d.pdvLocation) lines.push(`• **Localidad del distribuidor:** ${d.pdvLocation}`);
+    if (d.pdvProvince) lines.push(`• **Provincia del distribuidor:** ${d.pdvProvince}`);
   }
 
   // Productos confirmados
@@ -351,6 +357,12 @@ export function processUserInput(state: ConversationState, input: string, claimD
       return handlePersonalEmail(input, data);
     case "claim_pdv_distributor":
       return handlePdvDistributor(input, data);
+
+    case "claim_pdv_location":
+      return handlePdvLocation(input, data);
+
+    case "claim_pdv_province":
+      return handlePdvProvince(input, data);
     case "claim_add_another":
       return handleAddAnother(input, data);
     case "claim_summary":
@@ -463,8 +475,39 @@ function handlePdvDistributor(input: string, data: ClaimData): BotResponse {
       claimData: data,
     };
   }
-  const updated = { ...data, pdvDistributor: trimmed };
-  return startClaimFlow(updated);
+  return {
+    messages: ["¿En qué localidad está ubicado el distribuidor?"],
+    nextState: "claim_pdv_location",
+    claimData: { ...data, pdvDistributor: trimmed },
+  };
+}
+
+function handlePdvLocation(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 2) {
+    return {
+      messages: ["¿Podés indicarme la localidad?"],
+      nextState: "claim_pdv_location",
+      claimData: data,
+    };
+  }
+  return {
+    messages: ["¿Y en qué provincia?"],
+    nextState: "claim_pdv_province",
+    claimData: { ...data, pdvLocation: trimmed },
+  };
+}
+
+function handlePdvProvince(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 2) {
+    return {
+      messages: ["¿Podés indicarme la provincia?"],
+      nextState: "claim_pdv_province",
+      claimData: data,
+    };
+  }
+  return startClaimFlow({ ...data, pdvProvince: trimmed });
 }
 
 function startClaimFlow(data: ClaimData): BotResponse {
@@ -891,9 +934,9 @@ function handleHealthAlert(input: string, data: ClaimData): BotResponse {
 }
 
 function askPurchaseModality(data: ClaimData): BotResponse {
-  // PDV: saltear modalidad y local, ir directo a datos personales
+  // PDV: saltear modalidad y local, ir directo a imágenes
   if (data.userType === "pdv") {
-    return askPersonalData({ ...data, purchaseModality: "presencial" });
+    return askImagesInfo({ ...data, purchaseModality: "presencial" });
   }
   return {
     messages: ["¿Cómo realizaste la compra del producto?"],
@@ -945,30 +988,13 @@ function handlePurchaseStore(input: string, data: ClaimData): BotResponse {
   }
 
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return askPersonalData(updated);
+  return askImagesInfo(updated);
 }
 
 function handleMlSeller(input: string, data: ClaimData): BotResponse {
   const updated = { ...data, mlSeller: input.trim() || "(no indicado)" };
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return askPersonalData(updated);
-}
-
-// ─── Datos personales helper ─────────────────────────────────────────────────
-
-function askPersonalData(data: ClaimData): BotResponse {
-  if (data.personalName) {
-    // Ya tiene datos personales → ir directo al resumen
-    return goToSummary(data);
-  }
-  return {
-    messages: [
-      "Perfecto. ✅ Ahora necesito tus datos para poder contactarte y gestionar la reposición.",
-      "¿Cuál es tu nombre y apellido?",
-    ],
-    nextState: "claim_personal_name",
-    claimData: data,
-  };
+  return askImagesInfo(updated);
 }
 
 // ─── Imágenes ─────────────────────────────────────────────────────────────────
