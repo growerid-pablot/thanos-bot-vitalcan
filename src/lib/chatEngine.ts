@@ -856,7 +856,7 @@ function handleReasonDetail(input: string, data: ClaimData): BotResponse {
 
   const updated = { ...data, reasonDetail: trimmed };
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return saveCurrentProductAndAskMore(updated);
+  return askImagesInfo(updated);
 }
 
 function handleHealthAlert(input: string, data: ClaimData): BotResponse {
@@ -887,7 +887,7 @@ function handleHealthAlert(input: string, data: ClaimData): BotResponse {
   }
 
   // No urgente — continuar flujo normal
-  return saveCurrentProductAndAskMore(data);
+  return askImagesInfo(data);
 }
 
 function askPurchaseModality(data: ClaimData): BotResponse {
@@ -971,14 +971,7 @@ function askImagesInfo(data: ClaimData): BotResponse {
 }
 
 function handleImagesInfo(input: string, data: ClaimData): BotResponse {
-  return {
-    messages: [
-      "Perfecto. ✅ Ahora necesito tus datos para poder contactarte y gestionar la reposición del producto.",
-      "¿Cuál es tu nombre y apellido?",
-    ],
-    nextState: "claim_personal_name",
-    claimData: data,
-  };
+  return saveCurrentProductAndAskMore(data);
 }
 
 // ─── Datos personales ─────────────────────────────────────────────────────────
@@ -1074,8 +1067,12 @@ function handleAddAnother(input: string, data: ClaimData): BotResponse {
       claimData: data,
     };
   }
-  // No agregar más — continuar con modalidad de compra o imágenes según userType
-  return askPurchaseModality(data);
+  // No agregar más — continuar con datos personales si aún no los tenemos
+  if (!data.personalName) {
+    return askPurchaseModality(data);
+  }
+  // Ya tiene datos personales (segundo reclamo en sesión) → ir directo al resumen
+  return goToSummary(data);
 }
 
 // ─── Resumen y confirmación ───────────────────────────────────────────────────
