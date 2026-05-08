@@ -899,7 +899,7 @@ function handleReasonDetail(input: string, data: ClaimData): BotResponse {
 
   const updated = { ...data, reasonDetail: trimmed };
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return askImagesInfo(updated);
+  return askPersonalData(updated);
 }
 
 function handleHealthAlert(input: string, data: ClaimData): BotResponse {
@@ -936,7 +936,7 @@ function handleHealthAlert(input: string, data: ClaimData): BotResponse {
 function askPurchaseModality(data: ClaimData): BotResponse {
   // PDV: saltear modalidad y local, ir directo a imágenes
   if (data.userType === "pdv") {
-    return askImagesInfo({ ...data, purchaseModality: "presencial" });
+    return askPersonalData({ ...data, purchaseModality: "presencial" });
   }
   return {
     messages: ["¿Cómo realizaste la compra del producto?"],
@@ -988,13 +988,29 @@ function handlePurchaseStore(input: string, data: ClaimData): BotResponse {
   }
 
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return askImagesInfo(updated);
+  return askPersonalData(updated);
 }
 
 function handleMlSeller(input: string, data: ClaimData): BotResponse {
   const updated = { ...data, mlSeller: input.trim() || "(no indicado)" };
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return askImagesInfo(updated);
+  return askPersonalData(updated);
+}
+
+// ─── Datos personales helper ─────────────────────────────────────────────────
+
+function askPersonalData(data: ClaimData): BotResponse {
+  if (data.personalName) {
+    return goToSummary(data);
+  }
+  return {
+    messages: [
+      "Perfecto. ✅ Ahora necesito tus datos para poder contactarte y gestionar la reposición.",
+      "¿Cuál es tu nombre y apellido?",
+    ],
+    nextState: "claim_personal_name",
+    claimData: data,
+  };
 }
 
 // ─── Imágenes ─────────────────────────────────────────────────────────────────
