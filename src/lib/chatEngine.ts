@@ -52,24 +52,37 @@ export type ConversationState =
   // Resumen y cierre
   | "claim_summary"
   | "claim_edit_select"
+  | "claim_add_another"
   | "completed_step";
+
+// ─── Multi-producto ───────────────────────────────────────────────────────────
+
+export interface ProductItem {
+  product: string;
+  lot: string | null;
+  packagingDate: string | null;
+  expiryDate: string | null;
+  reasonCategory: string | null;
+  reasonSubcategory: string | null;
+  reasonDetail: string | null;
+}
 
 export interface ClaimData {
   // Tipo de usuario
   userType?: "consumer" | "pdv" | null;
   // PDV
   pdvDistributor?: string | null;
-  // Producto
+  // Producto actual (en edición)
   product?: string | null;
   _productCandidates?: string[];
-  // Lote y fechas
   lot?: string | null;
   packagingDate?: string | null;
   expiryDate?: string | null;
-  // Motivo
   reasonCategory?: string | null;
   reasonSubcategory?: string | null;
   reasonDetail?: string | null;
+  // Lista de productos confirmados
+  products?: ProductItem[];
   // Compra
   purchaseModality?: "presencial" | "virtual" | null;
   purchaseStore?: string | null;
@@ -84,7 +97,6 @@ export interface ClaimData {
   // Control de edición
   editReturnState?: ConversationState;
 }
-
 export interface Message {
   id: string;
   sender: "user" | "bot";
@@ -192,6 +204,37 @@ const REASON_SUBCATEGORIES: Record<string, string[]> = {
 
 const MAIN_MENU_OPTIONS = ["Hacer un reclamo", "Quiero comprar", "Tengo una consulta"];
 
+// ─── Motivos agrupados ────────────────────────────────────────────────────────
+
+const HEALTH_CATEGORY = "3- Problemas de salud";
+
+const REASON_CATEGORIES = ["1- Problemas de envasado", "2- Contenido del producto", HEALTH_CATEGORY, "4- Otros"];
+
+const REASON_SUBCATEGORIES: Record<string, string[]> = {
+  "1- Problemas de envasado": [
+    "Bolsa mal sellada",
+    "Envase - Bolsa",
+    "Envase - Lata",
+    "Envase - Pouch",
+    "Falta Rotulo (Venc/Lote/Elaboración)",
+    "Packaging - Menos Kilos",
+  ],
+  "2- Contenido del producto": [
+    "Bichos",
+    "Croquetas (tamaño, color extraños)",
+    "Hongos/Mohos",
+    "Mal Olor",
+    "Material Extraño - Objetos",
+    "Palatabilidad",
+  ],
+  [HEALTH_CATEGORY]: ["Gastroenteritis", "Problemas Piel y Pelo", "Problemas urinarios"],
+  "4- Otros": ["Otros motivos"],
+};
+
+// ─── Menus principales ───────────────────────────────────────────────────────
+
+const MAIN_MENU_OPTIONS = ["Hacer un reclamo", "Quiero comprar", "Tengo una consulta"];
+
 // ─── Cierre de ticket ────────────────────────────────────────────────────────
 
 function buildClaimClosure(num: string, priority: string): string[] {
@@ -210,6 +253,18 @@ function buildClaimClosure(num: string, priority: string): string[] {
 
 // ─── Resumen del reclamo ─────────────────────────────────────────────────────
 
+function formatProductItem(item: ProductItem, idx: number): string {
+  const lines = [
+    `  📦 **Producto ${idx + 1}:** ${item.product}`,
+    `  • Lote: ${item.lot ?? "(pendiente)"}`,
+    `  • Fecha envasado: ${item.packagingDate ?? "(pendiente)"}`,
+    `  • Fecha vencimiento: ${item.expiryDate ?? "(pendiente)"}`,
+    `  • Motivo: ${item.reasonSubcategory ?? item.reasonCategory ?? "(pendiente)"}`,
+    item.reasonDetail ? `  • Descripción: ${item.reasonDetail}` : "",
+  ].filter(Boolean);
+  return lines.join("\n");
+}
+
 function formatClaimSummary(d: ClaimData): string {
   const tipo = d.userType === "pdv" ? "Punto de venta" : "Consumidor final";
   const modality =
@@ -225,25 +280,23 @@ function formatClaimSummary(d: ClaimData): string {
     lines.push(`• **Distribuidor:** ${d.pdvDistributor}`);
   }
 
-  const restantes = [
-    `• **Producto:** ${d.product ?? "(pendiente)"}`,
-    `• **Lote:** ${d.lot ?? "(pendiente)"}`,
-    `• **Fecha de envasado:** ${d.packagingDate ?? "(pendiente)"}`,
-    `• **Fecha de vencimiento:** ${d.expiryDate ?? "(pendiente)"}`,
-    `• **Motivo:** ${d.reasonSubcategory ?? d.reasonCategory ?? "(pendiente)"}`,
-    d.reasonDetail ? `• **Descripción:** ${d.reasonDetail}` : "",
+  // Productos confirmados
+  const allProducts = d.products ?? [];
+  if (allProducts.length > 0) {
+    lines.push(`\n**Productos reclamados (${allProducts.length}):**`);
+    allProducts.forEach((item, idx) => {
+      lines.push(formatProductItem(item, idx));
+    });
+  }
+
+  lines.push(
     `• **Modalidad de compra:** ${modality}`,
     `• **Local / canal de compra:** ${store}`,
     `• **Nombre:** ${d.personalName ?? "(pendiente)"}`,
     `• **Email:** ${d.personalEmail ?? "(pendiente)"}`,
-    `• **Teléfono:** ${d.personalPhone ?? "(pendiente)"}`,
-    `• **Dirección:** ${d.personalAddress ?? "(pendiente)"}`,
-    `• **Código postal:** ${d.personalPostal ?? "(pendiente)"}`,
-    `• **Horario de recepción:** ${d.personalReception ?? "(pendiente)"}`,
-  ].filter(Boolean);
-  lines.push(...restantes);
+  );
 
-  return lines.join("\n");
+  return lines.filter(Boolean).join("\n");
 }
 
 // ─── Búsqueda de producto simple ─────────────────────────────────────────────
@@ -267,119 +320,76 @@ export function processUserInput(state: ConversationState, input: string, claimD
   switch (state) {
     case "initial":
       return getInitialBotResponse();
-
     case "main_menu":
       return handleMainMenu(input);
-
-    // ── Identificación de tipo de usuario ──────────────────────────────────
     case "awaiting_user_type":
       return handleUserType(input, data);
-
     case "distributor_redirect":
       return handleDistributorRedirect(input);
-
     case "awaiting_pdv_or_consumer":
       return handlePdvOrConsumer(input, data);
-
-    // ── Opciones: compra y consulta ────────────────────────────────────────
     case "purchase_user_type":
       return handlePurchaseUserType(input);
-
     case "purchase_info":
       return handlePurchaseInfo(input);
-
     case "purchase_location":
       return handlePurchaseLocation(input);
-
     case "purchase_province":
       return handlePurchaseProvince(input);
-
     case "consultation_email":
       return handleConsultationEmail(input);
-
     case "consultation_info":
       return handleConsultationInfo(input);
-
-    // ── Reclamo: producto ─────────────────────────────────────────────────
     case "claim_user_confirmed":
-      // Estado legacy: re-encaminamos al inicio del flujo de reclamo.
       return startClaimFlow(data);
-
     case "claim_product_name":
       return handleProductName(input, data);
-
     case "claim_product_confirm":
       return handleProductConfirm(input, data);
-
     case "claim_product_select":
       return handleProductSelect(input, data);
-
     case "claim_lot_number":
       return handleLotNumber(input, data);
-
     case "claim_lot_missing":
       return handleLotMissing(input, data);
-
     case "claim_packaging_date":
       return handlePackagingDate(input, data);
-
     case "claim_packaging_missing":
       return handlePackagingMissing(input, data);
-
     case "claim_expiry_date":
       return handleExpiryDate(input, data);
-
     case "claim_expiry_missing":
       return handleExpiryMissing(input, data);
-
-    // ── Reclamo: motivo ────────────────────────────────────────────────────
     case "claim_reason_category":
       return handleReasonCategory(input, data);
-
     case "claim_reason_subcategory":
       return handleReasonSubcategory(input, data);
-
     case "claim_reason_detail":
       return handleReasonDetail(input, data);
-
     case "claim_health_alert":
       return handleHealthAlert(input, data);
-
-    // ── Reclamo: compra ────────────────────────────────────────────────────
     case "claim_purchase_modality":
       return handlePurchaseModality(input, data);
-
     case "claim_purchase_store":
       return handlePurchaseStore(input, data);
-
     case "claim_purchase_ml_seller":
       return handleMlSeller(input, data);
-
-    // ── Reclamo: imágenes ─────────────────────────────────────────────────
     case "claim_images_info":
       return handleImagesInfo(input, data);
-
-    // ── Reclamo: datos personales ─────────────────────────────────────────
     case "claim_personal_name":
       return handlePersonalName(input, data);
-
     case "claim_personal_email":
       return handlePersonalEmail(input, data);
-
-    // ── PDV: distribuidor ─────────────────────────────────────────────────
     case "claim_pdv_distributor":
       return handlePdvDistributor(input, data);
-
-    // ── Resumen y cierre ──────────────────────────────────────────────────
+    case "claim_add_another":
+      return handleAddAnother(input, data);
     case "claim_summary":
       return handleClaimSummary(input, data);
-
     case "claim_edit_select":
       return handleClaimEditSelect(input, data);
-
     case "completed_step":
       return handleCompletedStep(input);
-
     default:
       return getInitialBotResponse();
   }
@@ -877,7 +887,7 @@ function handleReasonDetail(input: string, data: ClaimData): BotResponse {
 
   const updated = { ...data, reasonDetail: trimmed };
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return askPurchaseModality(updated);
+  return saveCurrentProductAndAskMore(updated);
 }
 
 function handleHealthAlert(input: string, data: ClaimData): BotResponse {
@@ -908,7 +918,7 @@ function handleHealthAlert(input: string, data: ClaimData): BotResponse {
   }
 
   // No urgente — continuar flujo normal
-  return askPurchaseModality(data);
+  return saveCurrentProductAndAskMore(data);
 }
 
 function askPurchaseModality(data: ClaimData): BotResponse {
@@ -1003,6 +1013,18 @@ function handleImagesInfo(input: string, data: ClaimData): BotResponse {
 }
 
 // ─── Datos personales ─────────────────────────────────────────────────────────
+function handleImagesInfo(input: string, data: ClaimData): BotResponse {
+  return {
+    messages: [
+      "Perfecto. ✅ Ahora necesito tus datos para poder contactarte y gestionar la reposición del producto.",
+      "¿Cuál es tu nombre y apellido?",
+    ],
+    nextState: "claim_personal_name",
+    claimData: data,
+  };
+}
+
+// ─── Datos personales ─────────────────────────────────────────────────────────
 
 function handlePersonalName(input: string, data: ClaimData): BotResponse {
   const trimmed = input.trim();
@@ -1046,6 +1068,59 @@ function goToSummary(data: ClaimData): BotResponse {
   };
 }
 
+// ─── Guardar producto actual y preguntar si agrega otro ──────────────────────
+
+function saveCurrentProductAndAskMore(data: ClaimData): BotResponse {
+  const currentProduct: ProductItem = {
+    product: data.product ?? "(sin nombre)",
+    lot: data.lot ?? null,
+    packagingDate: data.packagingDate ?? null,
+    expiryDate: data.expiryDate ?? null,
+    reasonCategory: data.reasonCategory ?? null,
+    reasonSubcategory: data.reasonSubcategory ?? null,
+    reasonDetail: data.reasonDetail ?? null,
+  };
+
+  const updatedProducts = [...(data.products ?? []), currentProduct];
+  const count = updatedProducts.length;
+
+  // Limpiar campos del producto actual para el siguiente
+  const cleanedData: ClaimData = {
+    ...data,
+    products: updatedProducts,
+    product: null,
+    _productCandidates: undefined,
+    lot: null,
+    packagingDate: null,
+    expiryDate: null,
+    reasonCategory: null,
+    reasonSubcategory: null,
+    reasonDetail: null,
+  };
+
+  return {
+    messages: [
+      `✅ Producto ${count} registrado: **${currentProduct.product}**.`,
+      "¿Querés agregar otro producto al mismo reclamo?",
+    ],
+    quickReplies: ["Sí, agregar otro producto", "No, continuar con el reclamo"],
+    nextState: "claim_add_another",
+    claimData: cleanedData,
+  };
+}
+
+function handleAddAnother(input: string, data: ClaimData): BotResponse {
+  if (input === "Sí, agregar otro producto") {
+    return {
+      messages: ["Indicame el nombre del siguiente producto."],
+      nextState: "claim_product_name",
+      claimData: data,
+    };
+  }
+  // No agregar más — continuar con modalidad de compra o imágenes según userType
+  return askPurchaseModality(data);
+}
+
 // ─── Resumen y confirmación ───────────────────────────────────────────────────
 
 function returnToSummary(data: ClaimData): BotResponse {
@@ -1086,10 +1161,6 @@ function handleClaimSummary(input: string, data: ClaimData): BotResponse {
         "Local de compra",
         "Nombre",
         "Email",
-        "Teléfono",
-        "Dirección",
-        "Código postal",
-        "Horario",
       ],
       nextState: "claim_edit_select",
       claimData: data,
@@ -1146,8 +1217,6 @@ function handleClaimEditSelect(input: string, data: ClaimData): BotResponse {
 
   const entry = map[input];
   if (entry) {
-    const msgs: string[] = [entry.msg];
-    // Si el campo es motivo, agregar quick replies de categorías
     const qr =
       input === "Motivo"
         ? REASON_CATEGORIES
@@ -1155,7 +1224,7 @@ function handleClaimEditSelect(input: string, data: ClaimData): BotResponse {
           ? ["Presencial (local físico)", "Virtual (online)"]
           : undefined;
     return {
-      messages: msgs,
+      messages: [entry.msg],
       quickReplies: qr,
       nextState: entry.state,
       claimData: { ...data, ...entry.clear, editReturnState: "claim_summary" },
