@@ -899,7 +899,7 @@ function handleReasonDetail(input: string, data: ClaimData): BotResponse {
 
   const updated = { ...data, reasonDetail: trimmed };
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
-  return askPersonalData(updated);
+  return askImagesInfo(updated);
 }
 
 function handleHealthAlert(input: string, data: ClaimData): BotResponse {
