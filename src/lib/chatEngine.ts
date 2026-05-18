@@ -23,6 +23,7 @@ export type ConversationState =
   | "claim_product_name"
   | "claim_product_confirm"
   | "claim_product_select"
+  | "claim_product_quantity"
   | "claim_lot_number"
   | "claim_lot_missing"
   | "claim_packaging_date"
@@ -65,6 +66,7 @@ export type ConversationState =
 
 export interface ProductItem {
   product: string;
+  quantity: string | null;
   lot: string | null;
   packagingDate: string | null;
   expiryDate: string | null;
@@ -85,6 +87,7 @@ export interface ClaimData {
   pdvProvince?: string | null;
   // Producto actual (en edición)
   product?: string | null;
+  quantity?: string | null;
   _productCandidates?: string[];
   lot?: string | null;
   packagingDate?: string | null;
@@ -236,6 +239,7 @@ function buildClaimClosure(num: string, priority: string): string[] {
 function formatProductItem(item: ProductItem, idx: number): string {
   const lines = [
     `  📦 **Producto ${idx + 1}:** ${item.product}`,
+    `  • Cantidad: ${item.quantity ?? "(pendiente)"}`,
     `  • Lote: ${item.lot ?? "(pendiente)"}`,
     `  • Fecha envasado: ${item.packagingDate ?? "(pendiente)"}`,
     `  • Fecha vencimiento: ${item.expiryDate ?? "(pendiente)"}`,
@@ -263,7 +267,7 @@ function formatClaimSummary(d: ClaimData): string {
   }
 
   if (d.userType === "pdv" && d.pdvClientAddress) {
-    lines.push(`• **Dirección:** ${d.pdvClientAddress}`);
+    lines.push(`• **Dirección del local:** ${d.pdvClientAddress}`);
     if (d.pdvClientLocality) lines.push(`• **Localidad / Provincia:** ${d.pdvClientLocality}`);
   }
 
@@ -335,6 +339,8 @@ export function processUserInput(state: ConversationState, input: string, claimD
       return handleProductConfirm(input, data);
     case "claim_product_select":
       return handleProductSelect(input, data);
+    case "claim_product_quantity":
+      return handleProductQuantity(input, data);
     case "claim_lot_number":
       return handleLotNumber(input, data);
     case "claim_lot_missing":
@@ -710,7 +716,7 @@ function handleProductConfirm(input: string, data: ClaimData): BotResponse {
     input.toLowerCase().includes("sí") || input.toLowerCase().includes("si") || input.includes("continuar con ese");
   if (isYes) {
     if (data.editReturnState === "claim_summary") return returnToSummary(data);
-    return askLotNumber(data);
+    return askQuantity(data);
   }
   return {
     messages: ["Indicame nuevamente el nombre del producto tal como figura en el envase."],
@@ -738,6 +744,31 @@ function handleProductSelect(input: string, data: ClaimData): BotResponse {
     };
   }
   const updated = { ...data, product: input, _productCandidates: undefined };
+  if (data.editReturnState === "claim_summary") return returnToSummary(updated);
+  return askQuantity(updated);
+}
+
+function askQuantity(data: ClaimData): BotResponse {
+  return {
+    messages: [
+      `Producto registrado: **${data.product}**. ✅`,
+      "¿Qué cantidad tenés para reclamar? (ej: 1 bolsa, 3 unidades, 2 kg)",
+    ],
+    nextState: "claim_product_quantity",
+    claimData: data,
+  };
+}
+
+function handleProductQuantity(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 1) {
+    return {
+      messages: ["¿Podés indicarme la cantidad? (ej: 1 bolsa, 3 unidades)"],
+      nextState: "claim_product_quantity",
+      claimData: data,
+    };
+  }
+  const updated = { ...data, quantity: trimmed };
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
   return askLotNumber(updated);
 }
@@ -1147,6 +1178,7 @@ function goToSummary(data: ClaimData): BotResponse {
 function saveCurrentProductAndAskMore(data: ClaimData): BotResponse {
   const currentProduct: ProductItem = {
     product: data.product ?? "(sin nombre)",
+    quantity: data.quantity ?? null,
     lot: data.lot ?? null,
     packagingDate: data.packagingDate ?? null,
     expiryDate: data.expiryDate ?? null,
@@ -1163,6 +1195,7 @@ function saveCurrentProductAndAskMore(data: ClaimData): BotResponse {
     ...data,
     products: updatedProducts,
     product: null,
+    quantity: null,
     _productCandidates: undefined,
     lot: null,
     packagingDate: null,
@@ -1231,6 +1264,7 @@ function handleClaimSummary(input: string, data: ClaimData): BotResponse {
       messages: ["¿Qué dato querés corregir?"],
       quickReplies: [
         "Producto",
+        "Cantidad",
         "Lote",
         "Fecha de envasado",
         "Fecha de vencimiento",
@@ -1258,6 +1292,11 @@ function handleClaimEditSelect(input: string, data: ClaimData): BotResponse {
       msg: "Indicame el nombre correcto del producto.",
       state: "claim_product_name",
       clear: { product: null },
+    },
+    Cantidad: {
+      msg: "¿Cuál es la cantidad correcta?",
+      state: "claim_product_quantity",
+      clear: { quantity: null },
     },
     Lote: {
       msg: "Indicame el número de lote correcto (formato: 1 letra + 5 números, ej: A12345).",
@@ -1313,6 +1352,7 @@ function handleClaimEditSelect(input: string, data: ClaimData): BotResponse {
     messages: ["Por favor seleccioná uno de los campos a editar."],
     quickReplies: [
       "Producto",
+      "Cantidad",
       "Lote",
       "Fecha de envasado",
       "Fecha de vencimiento",
