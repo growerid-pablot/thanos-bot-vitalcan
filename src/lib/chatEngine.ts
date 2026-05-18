@@ -1409,6 +1409,7 @@ function handleCompletedStep(input: string): BotResponse {
   }
   return {
     messages: ["¡Gracias por usar Biti! Si necesitás algo más, no dudes en escribirme. 🐾"],
+    quickReplies: ["Volver al menú principal"],
     nextState: "completed_step",
   };
 }
