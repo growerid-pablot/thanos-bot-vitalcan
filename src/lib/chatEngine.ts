@@ -386,7 +386,7 @@ function handleMainMenu(input: string): BotResponse {
         quickReplies: [
           "Soy distribuirdor / Cliente Directo",
           "Compro a un distribuidor / Punto de venta",
-          "Compro en supermercados u otro comercio ",
+          "Soy Consumidor Final",
         ],
         nextState: "awaiting_user_type",
         claimData: {},
@@ -1286,7 +1286,7 @@ export const DEMO_SCENARIOS = [
     steps: [
       "Hola",
       "Hacer un reclamo",
-      "Compro en supermercados u otro comercio ",
+      "Soy Consumidor Final",
       "Balanced perro adulto",
       "Balanced Perro Adulto Raza Grande x 20 Kg",
       "A12345",
@@ -1340,7 +1340,7 @@ export const DEMO_SCENARIOS = [
     steps: [
       "Hola",
       "Hacer un reclamo",
-      "Compro en supermercados u otro comercio ",
+      "Soy Consumidor Final",
       "Premium gato adulto 15kg",
       "Premium Gato Adulto x 15 Kg",
       "C54321",
