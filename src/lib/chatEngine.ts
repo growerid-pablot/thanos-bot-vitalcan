@@ -409,7 +409,7 @@ function handleMainMenu(input: string): BotResponse {
         messages: ["Perfecto. Antes de continuar, Podrías contarnos como compraste?"],
         quickReplies: [
           "Soy distribuirdor / Cliente Directo",
-          "Soy un Petshop / Punto de Venta",
+          "Soy Petshop / Punto de Venta / Criadero / Protectora",
           "Soy Consumidor Final",
         ],
         nextState: "awaiting_user_type",
@@ -458,7 +458,7 @@ function handleUserType(input: string, data: ClaimData): BotResponse {
 
   // Punto de venta o consumidor final
   const isPdv =
-    input === "Soy un Petshop / Punto de Venta" ||
+    input === "Soy Petshop / Punto de Venta / Criadero / Protectora" ||
     input.toLowerCase().includes("veterinaria") ||
     input.toLowerCase().includes("pet shop") ||
     input.toLowerCase().includes("punto de venta");
@@ -1448,7 +1448,7 @@ export const DEMO_SCENARIOS = [
     steps: [
       "Hola",
       "Hacer un reclamo",
-      "Soy un Petshop / Punto de Venta",
+      "Soy Petshop / Punto de Venta / Criadero / Protectora",
       "Sí",
       "Av. San Martín 456",
       "Buenos Aires, Buenos Aires",
