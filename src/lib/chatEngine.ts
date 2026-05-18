@@ -418,9 +418,9 @@ function handleMainMenu(input: string): BotResponse {
     case "Quiero comprar":
       return {
         messages: [
-          "¡Genial! Para conectarte con un representante comercial, primero contame: ¿sos consumidor final o punto de venta?",
+          "¡Genial! Para conectarte con un representante comercial, primero contame: ¿sos consumidor final, punto de venta o criadero/protectora?",
         ],
-        quickReplies: ["Consumidor final", "Punto de venta"],
+        quickReplies: ["Consumidor final", "Punto de venta", "Criadero/Protectora"],
         nextState: "purchase_user_type",
         claimData: {},
       };
