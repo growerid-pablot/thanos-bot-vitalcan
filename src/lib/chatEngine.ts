@@ -385,7 +385,7 @@ function handleMainMenu(input: string): BotResponse {
         messages: ["Perfecto. Antes de continuar, Podrías contarnos como compraste?"],
         quickReplies: [
           "Soy distribuirdor / Cliente Directo",
-          "Compro a un distribuidor / Punto de venta",
+          "Soy un Petshop / Punto de Venta",
           "Soy Consumidor Final",
         ],
         nextState: "awaiting_user_type",
@@ -434,7 +434,7 @@ function handleUserType(input: string, data: ClaimData): BotResponse {
 
   // Punto de venta o consumidor final
   const isPdv =
-    input === "Compro a un distribuidor / Punto de venta" ||
+    input === "Soy un Petshop / Punto de Venta" ||
     input.toLowerCase().includes("veterinaria") ||
     input.toLowerCase().includes("pet shop") ||
     input.toLowerCase().includes("punto de venta");
@@ -1312,7 +1312,7 @@ export const DEMO_SCENARIOS = [
     steps: [
       "Hola",
       "Hacer un reclamo",
-      "Compro a un distribuidor / Punto de venta",
+      "Soy un Petshop / Punto de Venta",
       "Soy el punto de venta y quiero hacer el reclamo yo",
       "Distribuidora Norte SRL",
       "Hop Gato Adulto",
