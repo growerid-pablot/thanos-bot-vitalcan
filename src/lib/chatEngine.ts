@@ -47,6 +47,10 @@ export type ConversationState =
   | "claim_personal_address"
   | "claim_personal_postal"
   | "claim_personal_reception"
+  // Reclamo — PDV número de cliente
+  | "pdv_has_client_number"
+  | "pdv_client_address"
+  | "pdv_client_locality"
   // Reclamo — PDV datos adicionales
   | "claim_pdv_distributor"
   | "claim_pdv_location"
@@ -73,6 +77,9 @@ export interface ClaimData {
   // Tipo de usuario
   userType?: "consumer" | "pdv" | null;
   // PDV
+  pdvHasClientNumber?: boolean | null;
+  pdvClientAddress?: string | null;
+  pdvClientLocality?: string | null;
   pdvDistributor?: string | null;
   pdvLocation?: string | null;
   pdvProvince?: string | null;
@@ -255,6 +262,11 @@ function formatClaimSummary(d: ClaimData): string {
     if (d.pdvProvince) lines.push(`• **Provincia del distribuidor:** ${d.pdvProvince}`);
   }
 
+  if (d.userType === "pdv" && d.pdvClientAddress) {
+    lines.push(`• **Dirección:** ${d.pdvClientAddress}`);
+    if (d.pdvClientLocality) lines.push(`• **Localidad / Provincia:** ${d.pdvClientLocality}`);
+  }
+
   // Productos confirmados
   const allProducts = d.products ?? [];
   if (allProducts.length > 0) {
@@ -355,6 +367,12 @@ export function processUserInput(state: ConversationState, input: string, claimD
       return handlePersonalName(input, data);
     case "claim_personal_email":
       return handlePersonalEmail(input, data);
+    case "pdv_has_client_number":
+      return handlePdvHasClientNumber(input, data);
+    case "pdv_client_address":
+      return handlePdvClientAddress(input, data);
+    case "pdv_client_locality":
+      return handlePdvClientLocality(input, data);
     case "claim_pdv_distributor":
       return handlePdvDistributor(input, data);
 
@@ -441,8 +459,9 @@ function handleUserType(input: string, data: ClaimData): BotResponse {
 
   if (isPdv) {
     return {
-      messages: ["Entendido. ¿A qué distribuidor le comprás el producto?"],
-      nextState: "claim_pdv_distributor",
+      messages: ["Entendido. ¿Tenés número de cliente?"],
+      quickReplies: ["Sí", "No"],
+      nextState: "pdv_has_client_number",
       claimData: { ...data, userType: "pdv" },
     };
   }
@@ -464,6 +483,52 @@ function handleDistributorRedirect(input: string): BotResponse {
 
 function handlePdvOrConsumer(input: string, data: ClaimData): BotResponse {
   return startClaimFlow({ ...data, userType: "pdv" });
+}
+
+function handlePdvHasClientNumber(input: string, data: ClaimData): BotResponse {
+  const isYes = input === "Sí" || input.toLowerCase() === "si" || input.toLowerCase() === "sí";
+  if (isYes) {
+    return {
+      messages: ["Perfecto. ¿Cuál es tu dirección? (calle y altura)"],
+      nextState: "pdv_client_address",
+      claimData: { ...data, pdvHasClientNumber: true },
+    };
+  }
+  // No tiene número de cliente → flujo original (pedir distribuidor)
+  return {
+    messages: ["Entendido. ¿A qué distribuidor le comprás el producto?"],
+    nextState: "claim_pdv_distributor",
+    claimData: { ...data, pdvHasClientNumber: false },
+  };
+}
+
+function handlePdvClientAddress(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 3) {
+    return {
+      messages: ["¿Podés indicarme tu dirección (calle y altura)?"],
+      nextState: "pdv_client_address",
+      claimData: data,
+    };
+  }
+  return {
+    messages: ["¿En qué localidad y provincia estás ubicado?"],
+    nextState: "pdv_client_locality",
+    claimData: { ...data, pdvClientAddress: trimmed },
+  };
+}
+
+function handlePdvClientLocality(input: string, data: ClaimData): BotResponse {
+  const trimmed = input.trim();
+  if (trimmed.length < 2) {
+    return {
+      messages: ["¿Podés indicarme tu localidad y provincia?"],
+      nextState: "pdv_client_locality",
+      claimData: data,
+    };
+  }
+  // Con número de cliente y dirección completa → ir directo al flujo de reclamo
+  return startClaimFlow({ ...data, pdvClientLocality: trimmed });
 }
 
 function handlePdvDistributor(input: string, data: ClaimData): BotResponse {
@@ -1313,15 +1378,16 @@ export const DEMO_SCENARIOS = [
       "Hola",
       "Hacer un reclamo",
       "Soy un Petshop / Punto de Venta",
-      "Soy el punto de venta y quiero hacer el reclamo yo",
-      "Distribuidora Norte SRL",
+      "Sí",
+      "Av. San Martín 456",
+      "Buenos Aires, Buenos Aires",
       "Hop Gato Adulto",
       "Hop! Gato Adulto x 15 Kg",
       "B98765",
       "05/02/2026",
       "05/08/2026",
-      "Problemas de envase",
-      "Bolsa rota o mal sellada",
+      "1- Problemas de envasado",
+      "Bolsa mal sellada",
       "Varias bolsas llegaron rotas en el pallet",
       "Presencial (local físico)",
       "Distribuidora Norte",
