@@ -779,6 +779,7 @@ function askLotNumber(data: ClaimData): BotResponse {
       `Producto registrado: **${data.product}**. ✅`,
       "Ahora indicame el **número de lote**. El formato es: **1 letra seguida de 5 números** (ej: A12345). Lo encontrás impreso en el envase.",
     ],
+    quickReplies: ["No se lee"],
     nextState: "claim_lot_number",
     claimData: data,
   };
@@ -787,6 +788,19 @@ function askLotNumber(data: ClaimData): BotResponse {
 // ─── Lote ─────────────────────────────────────────────────────────────────────
 
 function handleLotNumber(input: string, data: ClaimData): BotResponse {
+  if (input === "No se lee") {
+    const updated = { ...data, lot: "(no se lee)" };
+    if (data.editReturnState === "claim_summary") return returnToSummary(updated);
+    return {
+      messages: [
+        "Entendido, registramos que el lote no se lee. 📋",
+        "Indicame la **fecha de envasado** (formato DD/MM/AAAA).",
+      ],
+      quickReplies: ["No se lee"],
+      nextState: "claim_packaging_date",
+      claimData: updated,
+    };
+  }
   if (isMissingDataResponse(input)) {
     return {
       messages: [
@@ -812,6 +826,7 @@ function handleLotNumber(input: string, data: ClaimData): BotResponse {
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
   return {
     messages: [`Lote **${trimmed}** registrado. ✅`, "Ahora indicame la **fecha de envasado** (formato DD/MM/AAAA)."],
+    quickReplies: ["No se lee"],
     nextState: "claim_packaging_date",
     claimData: updated,
   };
@@ -831,6 +846,19 @@ function handleLotMissing(input: string, data: ClaimData): BotResponse {
 // ─── Fecha de envasado ────────────────────────────────────────────────────────
 
 function handlePackagingDate(input: string, data: ClaimData): BotResponse {
+  if (input === "No se lee") {
+    const updated = { ...data, packagingDate: "(no se lee)" };
+    if (data.editReturnState === "claim_summary") return returnToSummary(updated);
+    return {
+      messages: [
+        "Entendido, registramos que la fecha de envasado no se lee. 📋",
+        "Ahora indicame la **fecha de vencimiento** (formato DD/MM/AAAA).",
+      ],
+      quickReplies: ["No se lee"],
+      nextState: "claim_expiry_date",
+      claimData: updated,
+    };
+  }
   if (isMissingDataResponse(input)) {
     return {
       messages: ["No hay problema. ¿La buscás o seguimos sin ese dato?"],
@@ -853,6 +881,7 @@ function handlePackagingDate(input: string, data: ClaimData): BotResponse {
       `Fecha de envasado: **${input.trim()}**. ✅`,
       "Ahora indicame la **fecha de vencimiento** (formato DD/MM/AAAA).",
     ],
+    quickReplies: ["No se lee"],
     nextState: "claim_expiry_date",
     claimData: updated,
   };
@@ -879,6 +908,11 @@ function handlePackagingMissing(input: string, data: ClaimData): BotResponse {
 // ─── Fecha de vencimiento ─────────────────────────────────────────────────────
 
 function handleExpiryDate(input: string, data: ClaimData): BotResponse {
+  if (input === "No se lee") {
+    const updated = { ...data, expiryDate: "(no se lee)" };
+    if (data.editReturnState === "claim_summary") return returnToSummary(updated);
+    return askReasonCategory(updated);
+  }
   if (isMissingDataResponse(input)) {
     return {
       messages: ["No hay problema. ¿La buscás o seguimos?"],
@@ -896,14 +930,15 @@ function handleExpiryDate(input: string, data: ClaimData): BotResponse {
   }
   const updated = { ...data, expiryDate: input.trim() };
   if (data.editReturnState === "claim_summary") return returnToSummary(updated);
+  return askReasonCategory(updated);
+}
+
+function askReasonCategory(data: ClaimData): BotResponse {
   return {
-    messages: [
-      `Fecha de vencimiento: **${input.trim()}**. ✅`,
-      "¿Cuál es el motivo de tu reclamo? Seleccioná la categoría que mejor describe el problema:",
-    ],
+    messages: ["¿Cuál es el motivo de tu reclamo? Seleccioná la categoría que mejor describe el problema:"],
     quickReplies: REASON_CATEGORIES,
     nextState: "claim_reason_category",
-    claimData: updated,
+    claimData: data,
   };
 }
 
@@ -911,12 +946,7 @@ function handleExpiryMissing(input: string, data: ClaimData): BotResponse {
   if (input === "La busco y continúo") {
     return { messages: ["Dale, cuando la tengas escribila acá. 👍"], nextState: "claim_expiry_date", claimData: data };
   }
-  return {
-    messages: ["Entendido. ¿Cuál es el motivo de tu reclamo? Seleccioná la categoría:"],
-    quickReplies: REASON_CATEGORIES,
-    nextState: "claim_reason_category",
-    claimData: { ...data, expiryDate: "(pendiente)" },
-  };
+  return askReasonCategory({ ...data, expiryDate: "(pendiente)" });
 }
 
 // ─── Motivo ───────────────────────────────────────────────────────────────────
